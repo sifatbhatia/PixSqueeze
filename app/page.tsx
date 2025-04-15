@@ -26,7 +26,7 @@ declare global {
 const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB for initial upload
 
 // Compression formats
-type CompressionFormat = "auto" | "jpeg" | "png" | "webp"
+type CompressionFormat = "auto" | "jpeg" | "png" | "webp" | "avif"
 
 export default function ImageCompressor() {
   const [file, setFile] = useState<File | null>(null)
@@ -39,6 +39,7 @@ export default function ImageCompressor() {
   const [compressedSize, setCompressedSize] = useState<string | null>(null)
   const [compressionProgress, setCompressionProgress] = useState(0)
   const [format, setFormat] = useState<CompressionFormat>("auto")
+  const [backgroundColor, setBackgroundColor] = useState<"white" | "black">("white")
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [originalPreview, setOriginalPreview] = useState<string | null>(null)
   const [originalSizeBytes, setOriginalSizeBytes] = useState<number>(0)
@@ -113,11 +114,6 @@ export default function ImageCompressor() {
 
   // Get the appropriate MIME type based on format selection
   const getMimeType = (originalType: string, selectedFormat: CompressionFormat): string => {
-    if (selectedFormat === "auto") {
-      // For auto, use the original type or default to jpeg
-      return originalType || "image/jpeg"
-    }
-
     switch (selectedFormat) {
       case "jpeg":
         return "image/jpeg"
@@ -125,8 +121,12 @@ export default function ImageCompressor() {
         return "image/png"
       case "webp":
         return "image/webp"
+      case "avif":
+        return "image/avif"
+      case "auto":
+        return originalType
       default:
-        return originalType || "image/jpeg"
+        return "image/jpeg"
     }
   }
 
@@ -162,9 +162,9 @@ export default function ImageCompressor() {
           canvas.width = width
           canvas.height = height
 
-          // For PNG with transparency, set white background
+          // For PNG with transparency, set background color only for JPEG
           if (file.type === "image/png" && selectedFormat === "jpeg") {
-            ctx.fillStyle = "white"
+            ctx.fillStyle = backgroundColor
             ctx.fillRect(0, 0, width, height)
           }
 
@@ -208,14 +208,40 @@ export default function ImageCompressor() {
   }
 
   const handleCompress = async () => {
-    if (!file) return
+    if (!file) {
+      setError("Please select an image first")
+      return
+    }
 
-    setError(null)
-    setWarning(null)
     setIsCompressing(true)
-    setCompressionProgress(10)
+    setError(null)
+    setCompressionProgress(0)
 
     try {
+      // Check for AVIF support
+      if (format === "avif") {
+        const canvas = document.createElement("canvas")
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          throw new Error("Could not get canvas context")
+        }
+        canvas.width = 1
+        canvas.height = 1
+        const isAvifSupported = await new Promise((resolve) => {
+          canvas.toBlob(
+            (blob) => resolve(blob !== null),
+            "image/avif",
+            0.5
+          )
+        })
+        if (!isAvifSupported) {
+          setWarning("Your browser does not support AVIF encoding. The image will be converted to WebP instead.")
+          setFormat("webp")
+        }
+      }
+
+      setCompressionProgress(20)
+
       // Try multiple compression strategies if needed
       setCompressionProgress(30)
 
@@ -354,9 +380,25 @@ export default function ImageCompressor() {
                           <SelectItem value="jpeg">JPEG</SelectItem>
                           <SelectItem value="png">PNG</SelectItem>
                           <SelectItem value="webp">WebP</SelectItem>
+                          <SelectItem value="avif">AVIF</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {format === "jpeg" && file?.type === "image/png" && (
+                      <div className="space-y-4">
+                        <Label className="text-base">Background Color</Label>
+                        <Select value={backgroundColor} onValueChange={(value) => setBackgroundColor(value as "white" | "black")}>
+                          <SelectTrigger className="w-full bg-transparent border-foreground/20">
+                            <SelectValue placeholder="Select background color" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="white">White</SelectItem>
+                            <SelectItem value="black">Black</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-center">
