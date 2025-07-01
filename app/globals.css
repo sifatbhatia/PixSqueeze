@@ -4,8 +4,10 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%; /* Dark navy */
-    --foreground: 60 9% 98%; /* Off-white */
+    --background: 222 47% 11%;
+    /* Dark navy */
+    --foreground: 60 9% 98%;
+    /* Off-white */
 
     --card: 222 47% 11%;
     --card-foreground: 60 9% 98%;
@@ -40,6 +42,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
   }
@@ -67,19 +70,20 @@
 
 /* Button styles */
 .button-minimal {
-  @apply bg-transparent border border-foreground/20 text-foreground 
-         hover:border-foreground/40 hover:bg-secondary/70
-         transition-all duration-300;
+  @apply bg-transparent border border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-secondary/70 transition-all duration-300;
 }
 
 /* Upload area styles */
 .upload-area {
-  @apply relative rounded-none border border-foreground/20
-         bg-secondary/50 p-12 text-center transition-all duration-300
-         hover:border-foreground/40 hover:bg-secondary/70;
+  @apply relative rounded-none border border-foreground/20 bg-secondary/50 p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
 }
 
 /* Image preview area */
 .preview-area {
   @apply bg-secondary/50 border border-foreground/20;
+}
+
+button.text-sm:nth-child(1),
+button.text-sm:nth-child(3) {
+  display: none;
 }

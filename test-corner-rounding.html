@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+   <title>Test Corner Rounding</title>
+</head>
+
+<body>
+   <h1>Test Corner Rounding Functionality</h1>
+   <canvas id="testCanvas" width="200" height="200" style="border: 1px solid black;"></canvas>
+
+   <script>
+      const canvas = document.getElementById('testCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Test if roundRect is available
+      console.log('roundRect available:', typeof ctx.roundRect === 'function');
+
+      // Create a test with corner rounding
+      const width = 200;
+      const height = 200;
+      const radius = 20;
+
+      // Create a gradient for testing
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, 'red');
+      gradient.addColorStop(1, 'blue');
+
+      ctx.save();
+      ctx.beginPath();
+
+      if (typeof ctx.roundRect === 'function') {
+         ctx.roundRect(0, 0, width, height, radius);
+      } else {
+         // Manual rounded rectangle
+         ctx.moveTo(radius, 0);
+         ctx.lineTo(width - radius, 0);
+         ctx.quadraticCurveTo(width, 0, width, radius);
+         ctx.lineTo(width, height - radius);
+         ctx.quadraticCurveTo(width, height, width - radius, height);
+         ctx.lineTo(radius, height);
+         ctx.quadraticCurveTo(0, height, 0, height - radius);
+         ctx.lineTo(0, radius);
+         ctx.quadraticCurveTo(0, 0, radius, 0);
+      }
+
+      ctx.clip();
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+
+      console.log('Corner rounding test completed!');
+   </script>
+</body>
+
+</html>
