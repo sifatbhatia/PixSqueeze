@@ -1,6 +1,8 @@
 "use client"
 
 import type React from "react"
+import ReactCrop, { type Crop } from "react-image-crop"
+import "react-image-crop/dist/ReactCrop.css"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -54,6 +56,8 @@ type CompressionFormat = "auto" | "jpeg" | "png" | "webp" | "avif"
 export default function ImageCompressor() {
   const [file, setFile] = useState<File | null>(null)
   const [compressedImage, setCompressedImage] = useState<string | null>(null)
+  const [compressedMimeType, setCompressedMimeType] = useState<string | null>(null)
+  const [compressedFileExtension, setCompressedFileExtension] = useState<string | null>(null)
   const [quality, setQuality] = useState(80)
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
@@ -75,6 +79,8 @@ export default function ImageCompressor() {
   const [originalSizeBytes, setOriginalSizeBytes] = useState<number>(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isGeneratingHeicPreview, setIsGeneratingHeicPreview] = useState(false)
+  const [crop, setCrop] = useState<Crop>()
+  const compressedImgRef = useRef<HTMLImageElement | null>(null)
   
   // Cache for converted HEIC blobs to avoid reconversion
   const heicCacheRef = useRef<Map<string, Blob>>(new Map())
@@ -178,6 +184,8 @@ export default function ImageCompressor() {
     setError(null)
     setWarning(null)
     setCompressedImage(null)
+    setCompressedMimeType(null)
+    setCompressedFileExtension(null)
     setCompressedSize(null)
     setCompressionProgress(0)
     setIsGeneratingHeicPreview(false)
@@ -362,6 +370,8 @@ export default function ImageCompressor() {
     setBatchResults({})
     setBatchProgress({})
     setCompressedImage(null)
+    setCompressedMimeType(null)
+    setCompressedFileExtension(null)
     setCompressedSize(null)
     setCompressionProgress(0)
     setError(null)
@@ -385,6 +395,74 @@ export default function ImageCompressor() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
+  }
+
+  const handleApplyCrop = async () => {
+    if (compressedImgRef.current && crop?.width && crop?.height && compressedMimeType) {
+      const image = compressedImgRef.current
+      const scaleX = image.naturalWidth / image.width
+      const scaleY = image.naturalHeight / image.height
+
+      const pixelCrop = {
+        x: crop.x * scaleX,
+        y: crop.y * scaleY,
+        width: crop.width * scaleX,
+        height: crop.height * scaleY,
+        unit: 'px' as const,
+      }
+
+      const croppedBlob = await getCroppedImg(
+        image,
+        pixelCrop,
+        compressedMimeType
+      )
+      
+      if (compressedImage) {
+        URL.revokeObjectURL(compressedImage)
+      }
+
+      const croppedUrl = URL.createObjectURL(croppedBlob)
+      setCompressedImage(croppedUrl)
+      setCompressedSize(formatFileSize(croppedBlob.size))
+      setCrop(undefined) // Reset crop selection
+    }
+  }
+
+  function getCroppedImg(image: HTMLImageElement, crop: Crop, mimeType: string): Promise<Blob> {
+    const canvas = document.createElement("canvas")
+    canvas.width = crop.width
+    canvas.height = crop.height
+    const ctx = canvas.getContext("2d")
+
+    if (!ctx) {
+      return Promise.reject(new Error("Could not get canvas context"))
+    }
+
+    ctx.drawImage(
+      image,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      0,
+      0,
+      crop.width,
+      crop.height
+    )
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Canvas is empty"))
+            return
+          }
+          resolve(blob)
+        },
+        mimeType,
+        1 // Use max quality for cropping, compression is already done
+      )
+    })
   }
 
   // Get the appropriate MIME type based on format selection
@@ -544,7 +622,7 @@ export default function ImageCompressor() {
       } catch {
         // Fall back to heic2any conversion using cached/optimized method
         console.log("Direct HEIC loading failed, converting with heic2any...")
-        
+
         // Use medium quality for processing (balance between quality and memory)
         const convertedBlob = await convertHeicToBlob(file, 0.8)
 
@@ -606,8 +684,7 @@ export default function ImageCompressor() {
           if (availableMemory < estimatedNeeded && availableMemory < 100 * 1024 * 1024) {
             // Try to free up memory first
             console.warn("Low memory detected, attempting cleanup...")
-            forceMemoryCleanup()
-            
+
             // Wait a bit for cleanup to complete
             await new Promise(resolve => setTimeout(resolve, 100))
           }
@@ -828,6 +905,8 @@ export default function ImageCompressor() {
 
       // First attempt with selected format and quality
       let compressedBlob = await compressImageInBrowser(file, quality, format, cornerRadius)
+      let finalMimeType = getMimeType(file.type, format)
+      let finalExtension = format === "auto" ? (file.name.split(".").pop() || 'jpg') : format
       setCompressionProgress(70)
 
       // If the compressed size is larger than the original, try different strategies
@@ -836,19 +915,26 @@ export default function ImageCompressor() {
         if (file.type === "image/png" && format !== "png") {
           setCompressionProgress(75)
           compressedBlob = await compressImageInBrowser(file, quality, "jpeg", 0) // No corner radius for JPEG
+          finalMimeType = "image/jpeg"
+          finalExtension = "jpeg"
         }
 
         // If still larger, try WebP
         if (compressedBlob.size >= file.size && format !== "webp") {
           setCompressionProgress(80)
           compressedBlob = await compressImageInBrowser(file, quality, "webp", cornerRadius)
+          finalMimeType = "image/webp"
+          finalExtension = "webp"
         }
 
         // If still larger, try with lower quality
         if (compressedBlob.size >= file.size && quality > 50) {
           setCompressionProgress(85)
-          const fallbackRadius = supportsTransparency(format === "auto" ? "jpeg" : format) ? cornerRadius : 0
-          compressedBlob = await compressImageInBrowser(file, 50, format === "auto" ? "jpeg" : format, fallbackRadius)
+          const fallbackFormat = format === "auto" ? "jpeg" : format
+          const fallbackRadius = supportsTransparency(fallbackFormat, file.type) ? cornerRadius : 0
+          compressedBlob = await compressImageInBrowser(file, 50, fallbackFormat, fallbackRadius)
+          finalMimeType = getMimeType(file.type, fallbackFormat)
+          finalExtension = fallbackFormat
         }
 
         // If all attempts failed to reduce size
@@ -860,6 +946,8 @@ export default function ImageCompressor() {
       // Create object URL for display
       const objectUrl = URL.createObjectURL(compressedBlob)
       setCompressedImage(objectUrl)
+      setCompressedMimeType(finalMimeType)
+      setCompressedFileExtension(finalExtension)
       setCompressedSize(formatFileSize(compressedBlob.size))
       setCompressionProgress(100)
 
@@ -1088,17 +1176,23 @@ export default function ImageCompressor() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="text-base">Corner Radius</Label>
-                          <span className="text-sm text-foreground/70">{cornerRadius}px</span>
+                          <span className="text-sm text-foreground/70">
+                            {cornerRadius === 9999 ? "Circle" : cornerRadius > 0 ? `${cornerRadius}px` : "None"}
+                          </span>
                         </div>
-                        <Slider
-                          id="corner-radius-slider"
-                          min={0}
-                          max={1000}
-                          step={1}
-                          value={[cornerRadius]}
-                          onValueChange={(value) => setCornerRadius(value[0])}
-                          className="mt-2"
-                        />
+                        <Select onValueChange={(value) => setCornerRadius(Number(value))}>
+                          <SelectTrigger className="w-full bg-transparent border-foreground/20">
+                            <SelectValue placeholder="Select corner radius" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">None</SelectItem>
+                            <SelectItem value="24">24px</SelectItem>
+                            <SelectItem value="48">48px</SelectItem>
+                            <SelectItem value="128">128px</SelectItem>
+                            <SelectItem value="256">256px</SelectItem>
+                            <SelectItem value="9999">Circle</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <p className="text-xs text-foreground/60">
                           Add rounded corners to images with transparent backgrounds (PNG, WebP, AVIF)
                         </p>
@@ -1264,45 +1358,62 @@ export default function ImageCompressor() {
                           </div>
                         </div>
                         <div className="preview-area aspect-square">
-                          <img
-                            src={compressedImage}
-                            alt="Compressed"
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="button-minimal w-full"
-                        >
-                          <a
-                            href={compressedImage}
-                            download={`compressed_${file?.name.split(".")[0] || 'image'}.${format === "auto" ? file?.name.split(".").pop() || 'jpg' : format}`}
+                          <ReactCrop
+                            crop={crop}
+                            onChange={(c, percentCrop) => setCrop(c)}
                           >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </a>
-                        </Button>
+                            <img
+                              ref={compressedImgRef}
+                              src={compressedImage}
+                              alt="Compressed"
+                              className="w-full h-full object-contain"
+                              onLoad={(e) => (compressedImgRef.current = e.currentTarget)}
+                            />
+                          </ReactCrop>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            asChild
+                            variant="outline"
+                            className="button-minimal w-full"
+                          >
+                            <a
+                              href={compressedImage}
+                              download={`compressed_${file?.name.split(".")[0] || 'image'}.${compressedFileExtension || format}`}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </a>
+                          </Button>
+                          <Button
+                            onClick={handleApplyCrop}
+                            disabled={!crop?.width || !crop?.height}
+                            className="button-minimal w-full"
+                            variant="outline"
+                          >
+                            Apply Crop
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
+
+                {/* Alerts */}
+                {error && (
+                  <Alert variant="destructive" className="mt-6 bg-transparent border border-red-500/50">
+                    <FileWarning className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {warning && (
+                  <Alert className="mt-6 bg-transparent border border-yellow-500/50">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>{warning}</AlertDescription>
+                  </Alert>
+                )}
               </div>
-            )}
-
-            {/* Alerts */}
-            {error && (
-              <Alert variant="destructive" className="mt-6 bg-transparent border border-red-500/50">
-                <FileWarning className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {warning && (
-              <Alert className="mt-6 bg-transparent border border-yellow-500/50">
-                <Info className="h-4 w-4" />
-                <AlertDescription>{warning}</AlertDescription>
-              </Alert>
             )}
           </CardContent>
         </Card>
