@@ -1,3 +1,5 @@
+import withPWA from 'next-pwa';
+
 let userConfig = undefined
 try {
   // try to import ESM first
@@ -48,4 +50,25 @@ if (userConfig) {
   }
 }
 
-export default nextConfig
+// Configure PWA
+const withPWAConfig = withPWA({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  skipWaiting: true,
+  runtimeCaching: [
+    {
+      urlPattern: /^https?.*/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'offlineCache',
+        expiration: {
+          maxEntries: 200,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        },
+      },
+    },
+  ],
+});
+
+export default withPWAConfig(nextConfig);

@@ -6,8 +6,41 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "PixSqueeze - Image Compression Tool",
-  description: "Your images, only lighter.",
-  generator: 'v0.dev',
+  description: "Compress images offline with advanced features like HEIC support, corner rounding, and batch processing",
+  generator: 'PixSqueeze PWA',
+  applicationName: 'PixSqueeze',
+  keywords: ['image compression', 'HEIC', 'HEIF', 'offline', 'PWA', 'batch processing'],
+  authors: [{ name: 'PixSqueeze' }],
+  creator: 'PixSqueeze',
+  publisher: 'PixSqueeze',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL('http://localhost:3000'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'PixSqueeze - Image Compression Tool',
+    description: 'Compress images offline with advanced features',
+    url: '/',
+    siteName: 'PixSqueeze',
+    locale: 'en_US',
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -32,7 +65,12 @@ export const metadata = {
       },
     ],
   },
-  manifest: '/site.webmanifest',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'PixSqueeze',
+  },
 }
 
 export default function RootLayout({
@@ -42,6 +80,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="PixSqueeze" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#ffffff" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <main className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           {children}

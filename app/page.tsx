@@ -82,9 +82,66 @@ export default function ImageCompressor() {
   const [crop, setCrop] = useState<Crop>()
   const compressedImgRef = useRef<HTMLImageElement | null>(null)
   
+  // PWA and offline states
+  const [isOnline, setIsOnline] = useState(true)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  
   // Cache for converted HEIC blobs to avoid reconversion
   const heicCacheRef = useRef<Map<string, Blob>>(new Map())
   
+  // PWA Installation and offline detection
+  useEffect(() => {
+    // Check online status
+    setIsOnline(navigator.onLine)
+    
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    // PWA install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallPrompt(true)
+    }
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    
+    // Register service worker
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration)
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError)
+          })
+      })
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
+  }, [])
+  
+  // Install PWA
+  const handleInstallPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false)
+      }
+      setDeferredPrompt(null)
+    }
+  }
+
   // Cleanup function for HEIC cache
   const cleanupHeicCache = () => {
     heicCacheRef.current.clear()
@@ -1034,8 +1091,43 @@ export default function ImageCompressor() {
                 WebGPU
               </div>
             )}
+            {!isOnline && (
+              <div className="flex items-center gap-2 bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-sm">
+                <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                Offline Mode
+              </div>
+            )}
           </div>
-          <p className="text-xl text-foreground/70">Your images, only lighter.</p>
+          <p className="text-xl text-foreground/70">Your images, only lighter. {!isOnline ? "Works offline!" : ""}</p>
+          
+          {/* PWA Install Prompt */}
+          {showInstallPrompt && (
+            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-blue-400">Install PixSqueeze</h3>
+                  <p className="text-sm text-blue-300">Add to your home screen for faster access and offline use</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleInstallPWA}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Install
+                  </Button>
+                  <Button
+                    onClick={() => setShowInstallPrompt(false)}
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                  >
+                    Later
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1071,6 +1163,11 @@ export default function ImageCompressor() {
                     <p className="text-sm text-foreground/70">
                       Maximum total size: {formatFileSize(MAX_FILE_SIZE)}
                     </p>
+                    {!isOnline && (
+                      <p className="text-sm text-orange-400 font-medium">
+                        ✓ Offline mode - All processing happens locally
+                      </p>
+                    )}
                   </div>
                 </Label>
               </div>
@@ -1400,6 +1497,15 @@ export default function ImageCompressor() {
                 )}
 
                 {/* Alerts */}
+                {!isOnline && (
+                  <Alert className="mt-6 bg-transparent border border-orange-500/50">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      You're currently offline. PixSqueeze works completely offline - all image processing happens locally in your browser!
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {error && (
                   <Alert variant="destructive" className="mt-6 bg-transparent border border-red-500/50">
                     <FileWarning className="h-4 w-4" />
