@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useRef } from "react"
-import { Upload, Download } from "lucide-react"
+import { Download, Upload } from "lucide-react"
+import React, { useRef, useState } from "react"
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)

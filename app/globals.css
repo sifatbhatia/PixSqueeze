@@ -32,7 +32,8 @@
     @apply border-border;
   }
 
-  html, body {
+  html,
+  body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -44,7 +45,8 @@
     @apply bg-background text-foreground antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-size: 16px; /* Prevent iOS zoom */
+    font-size: 16px;
+    /* Prevent iOS zoom */
   }
 
   /* iOS optimizations */
@@ -54,8 +56,11 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  input, textarea, select {
-    font-size: 16px; /* Prevent iOS zoom on focus */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+    /* Prevent iOS zoom on focus */
   }
 }
 
@@ -193,7 +198,8 @@
   background: transparent;
   cursor: pointer;
   margin: 8px 0;
-  padding: 0 20px; /* Safe zone from edges */
+  padding: 0 20px;
+  /* Safe zone from edges */
 }
 
 .mobile-slider input[type="range"] {
@@ -262,6 +268,10 @@
   cursor: pointer;
   transition: all 0.2s ease;
   margin: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .mobile-button:hover {
@@ -356,17 +366,17 @@
   .mobile-header {
     padding: 48px 40px;
   }
-  
+
   .mobile-header h1 {
     font-size: 4rem;
   }
-  
+
   .mobile-container {
     padding: 40px;
     max-width: 1200px;
     margin: 0 auto;
   }
-  
+
   .mobile-controls {
     display: grid;
     grid-template-columns: 1fr 1fr;

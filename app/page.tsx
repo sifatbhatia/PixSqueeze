@@ -1,11 +1,19 @@
 "use client"
 
-import React, { useState, useRef } from "react"
-import { Upload, Download, AlertCircle } from "lucide-react"
+import { AlertCircle, Download, Upload } from "lucide-react"
+import React, { useRef, useState } from "react"
 
 // Constants
 const MAX_FILE_SIZE = 1024 * 1024 * 1024 // 1GB
-const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const SUPPORTED_FORMATS = [
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif',
+  'image/bmp', 'image/gif', 'image/tiff', 'image/svg+xml',
+  'image/heic', 'image/heif', 'image/x-icon', 'image/vnd.microsoft.icon'
+]
+const SUPPORTED_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.webp', '.avif', '.bmp', '.gif', 
+  '.tiff', '.tif', '.svg', '.heic', '.heif', '.ico'
+]
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
@@ -31,10 +39,16 @@ export default function HomePage() {
       return `File size exceeds maximum limit of ${formatFileSize(MAX_FILE_SIZE)}`
     }
 
-    // Check file type
-    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
-    if (!SUPPORTED_FORMATS.includes(file.type) && !isHeic) {
-      return 'Unsupported file format. Please upload JPEG, PNG, WebP, or HEIC files.'
+    // Check file type and extension
+    const fileName = file.name.toLowerCase()
+    const hasValidExtension = SUPPORTED_EXTENSIONS.some(ext => fileName.endsWith(ext))
+    const hasValidMimeType = SUPPORTED_FORMATS.includes(file.type)
+    
+    // Special case for HEIC/HEIF which might not have proper MIME types
+    const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif')
+    
+    if (!hasValidMimeType && !hasValidExtension && !isHeic) {
+      return 'Unsupported file format. Please upload JPEG, PNG, WebP, AVIF, BMP, GIF, TIFF, SVG, or HEIC files.'
     }
 
     return null
@@ -248,7 +262,7 @@ export default function HomePage() {
               <Upload size={32} color="rgba(255, 255, 255, 0.7)" />
               <h3>Drop your image here</h3>
               <p>Single file processing</p>
-              <p>Supports: JPEG, PNG, WebP, HEIC/HEIF</p>
+              <p>Supports: JPEG, PNG, WebP, AVIF, BMP, GIF, TIFF, SVG, HEIC/HEIF</p>
               <p>Maximum size: {formatFileSize(MAX_FILE_SIZE)}</p>
             </div>
           </div>
@@ -292,7 +306,8 @@ export default function HomePage() {
                 >
                   <option value="jpeg">JPEG (Best compression)</option>
                   <option value="png">PNG (Lossless)</option>
-                  <option value="webp">WebP (Modern)</option>
+                  <option value="webp">WebP (Modern, smaller)</option>
+                  <option value="avif">AVIF (Newest, smallest)</option>
                 </select>
                 {file?.name.toLowerCase().includes('.heic') && (
                   <p style={{ 
