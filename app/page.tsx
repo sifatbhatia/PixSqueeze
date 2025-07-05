@@ -1213,7 +1213,7 @@ export default function ImageCompressor() {
                     <Button
                       onClick={handleAddMoreFiles}
                       variant="outline"
-                      className="button-minimal text-sm"
+                      className="button-minimal text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
                     >
                       <span className="hidden sm:inline">Add More Files</span>
                       <span className="sm:hidden">Add Files</span>
@@ -1221,7 +1221,7 @@ export default function ImageCompressor() {
                     <Button
                       onClick={handleReset}
                       variant="outline"
-                      className="button-minimal text-sm"
+                      className="button-minimal text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
                     >
                       <span className="hidden sm:inline">Start Over</span>
                       <span className="sm:hidden">Reset</span>
@@ -1233,7 +1233,7 @@ export default function ImageCompressor() {
                         setTimeout(() => setWarning(null), 3000)
                       }}
                       variant="outline"
-                      className="button-minimal text-orange-600 hover:text-orange-700 text-sm"
+                      className="button-minimal text-orange-600 hover:text-orange-700 text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
                       title="Clear memory cache to free up RAM"
                     >
                       <span className="hidden sm:inline">Free Memory</span>
@@ -1242,13 +1242,13 @@ export default function ImageCompressor() {
                   </div>
                 </div>
 
-                {/* Controls Section */}
-                <div className="mobile-controls">
+                {/* Controls Section - Mobile Optimized */}
+                <div className="mobile-controls space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-8">
                   <div className="space-y-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label className="text-base">Quality</Label>
-                        <span className="text-sm text-foreground/70">{quality}%</span>
+                        <Label className="text-base font-medium">Quality</Label>
+                        <span className="text-sm text-foreground/70 font-medium">{quality}%</span>
                       </div>
                       <Slider
                         id="quality-slider"
@@ -1257,13 +1257,13 @@ export default function ImageCompressor() {
                         step={1}
                         value={[quality]}
                         onValueChange={(value) => setQuality(value[0])}
-                        className="mt-2"
+                        className="mt-2 touch-manipulation"
                       />
                     </div>
                     <div className="space-y-4">
-                      <Label className="text-base">Format</Label>
+                      <Label className="text-base font-medium">Format</Label>
                       <Select value={format} onValueChange={(value) => setFormat(value as CompressionFormat)}>
-                        <SelectTrigger className="w-full bg-transparent border-foreground/20">
+                        <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
                           <SelectValue placeholder="Select format" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1278,9 +1278,9 @@ export default function ImageCompressor() {
 
                     {format === "jpeg" && file?.type === "image/png" && (
                       <div className="space-y-4">
-                        <Label className="text-base">Background Color</Label>
+                        <Label className="text-base font-medium">Background Color</Label>
                         <Select value={backgroundColor} onValueChange={(value) => setBackgroundColor(value as "white" | "black")}>
-                          <SelectTrigger className="w-full bg-transparent border-foreground/20">
+                          <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
                             <SelectValue placeholder="Select background color" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1294,13 +1294,13 @@ export default function ImageCompressor() {
                     {supportsTransparency(format, file?.type) && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-base">Corner Radius</Label>
-                          <span className="text-sm text-foreground/70">
+                          <Label className="text-base font-medium">Corner Radius</Label>
+                          <span className="text-sm text-foreground/70 font-medium">
                             {cornerRadius === 9999 ? "Circle" : cornerRadius > 0 ? `${cornerRadius}px` : "None"}
                           </span>
                         </div>
                         <Select onValueChange={(value) => setCornerRadius(Number(value))}>
-                          <SelectTrigger className="w-full bg-transparent border-foreground/20">
+                          <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
                             <SelectValue placeholder="Select corner radius" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1321,17 +1321,17 @@ export default function ImageCompressor() {
                     {webGPUAvailable && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-base">WebGPU Acceleration</Label>
+                          <Label className="text-base font-medium">WebGPU Acceleration</Label>
                           <button
                             type="button"
                             onClick={() => setUseWebGPU(!useWebGPU)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                               useWebGPU ? 'bg-blue-600' : 'bg-gray-200'
                             }`}
                           >
                             <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                useWebGPU ? 'translate-x-6' : 'translate-x-1'
+                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                                useWebGPU ? 'translate-x-7' : 'translate-x-1'
                               }`}
                             />
                           </button>
@@ -1343,15 +1343,16 @@ export default function ImageCompressor() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-center">
+                  {/* Compress Button - Prominent and always visible */}
+                  <div className="mt-8 flex items-center justify-center">
                     <Button
                       onClick={handleCompress}
                       disabled={(!file && !batchMode) || isCompressing || isGeneratingHeicPreview}
-                      className="button-minimal px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg w-full max-w-sm"
+                      className="button-minimal px-8 py-6 text-lg w-full max-w-sm h-14 touch-manipulation md:max-w-md lg:max-w-sm"
                     >
                       {isCompressing ? (
                         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                          <span className="text-sm sm:text-base">
+                          <span className="text-sm sm:text-base font-medium">
                             {batchMode ? "Processing Batch" : "Processing"}
                           </span>
                           {useWebGPU && webGPUAvailable && (
@@ -1361,11 +1362,11 @@ export default function ImageCompressor() {
                         </div>
                       ) : isGeneratingHeicPreview ? (
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <span className="text-sm sm:text-base">Converting HEIC Preview...</span>
+                          <span className="text-sm sm:text-base font-medium">Converting HEIC Preview...</span>
                           <div className="w-4 h-4 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
                         </div>
                       ) : (
-                        <span className="text-sm sm:text-base">
+                        <span className="text-base sm:text-lg font-semibold">
                           {batchMode ? `Compress ${batchFiles.length} Images` : "Compress Image"}
                         </span>
                       )}

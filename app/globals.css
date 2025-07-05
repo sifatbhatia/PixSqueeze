@@ -71,7 +71,8 @@
 /* Mobile-first responsive design */
 @media (max-width: 768px) {
   body {
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Prevent zoom on iOS */
   }
 }
 
@@ -93,6 +94,8 @@
 /* Mobile header optimizations */
 .mobile-header {
   @apply py-8 sm:py-12 md:py-16;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .mobile-header h1 {
@@ -128,22 +131,46 @@
   /* Improve touch targets on mobile */
   min-height: 44px;
   min-width: 44px;
+  border-radius: 12px;
+  /* Friendly rounded corners */
 }
 
 /* Mobile button optimizations */
 @media (max-width: 768px) {
   .button-minimal {
-    @apply text-sm px-4 py-3;
-    min-height: 48px; /* Larger touch targets on mobile */
+    @apply text-base px-6 py-4;
+    min-height: 56px;
+    /* Even larger for better touch accessibility */
+    width: 100%;
+    max-width: none;
+    /* Remove max-width restriction on mobile */
+    font-weight: 600;
+    border-width: 2px;
+    /* Thicker border for better visibility */
+  }
+
+  /* Make sure the button container is visible */
+  .button-minimal:not(:disabled) {
+    @apply bg-blue-600/20 border-blue-500 text-blue-100;
+  }
+
+  .button-minimal:not(:disabled):hover {
+    @apply bg-blue-600/30 border-blue-400;
+  }
+
+  .button-minimal:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 }
 
 /* Upload area styles - Mobile optimized */
 .upload-area {
-  @apply relative rounded-none border border-foreground/20 bg-secondary/50 p-8 sm:p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
+  @apply relative border border-foreground/20 bg-secondary/50 p-8 sm:p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
   /* Mobile optimizations */
   min-height: 200px;
   touch-action: manipulation;
+  border-radius: 16px;
+  /* Friendly rounded corners */
 }
 
 @media (max-width: 768px) {
@@ -159,6 +186,8 @@
   /* Improve mobile scrolling */
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
+  border-radius: 12px;
+  /* Friendly rounded corners */
 }
 
 /* Mobile controls optimization */
@@ -206,6 +235,7 @@
 
 /* Hide specific buttons on mobile (as mentioned in original CSS) */
 @media (max-width: 768px) {
+
   button.text-sm:nth-child(1),
   button.text-sm:nth-child(3) {
     display: none;
@@ -225,4 +255,104 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Mobile-specific improvements for button visibility and accessibility */
+@media (max-width: 768px) {
+
+  /* Main compress button - ensure it's large and prominent */
+  .button-minimal {
+    font-size: 1rem;
+    padding: 16px 24px;
+    min-height: 56px;
+    width: 100%;
+    max-width: none;
+    font-weight: 600;
+    border-width: 2px;
+    border-radius: 16px;
+    /* Extra friendly rounded corners on mobile */
+  }
+
+  /* Make sure the button container is visible */
+  .button-minimal:not(:disabled) {
+    background-color: rgba(37, 99, 235, 0.2);
+    border-color: rgb(59, 130, 246);
+    color: rgb(219, 234, 254);
+  }
+
+  .button-minimal:not(:disabled):hover {
+    background-color: rgba(37, 99, 235, 0.3);
+    border-color: rgb(96, 165, 250);
+  }
+
+  .button-minimal:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Ensure the header doesn't take up too much space on mobile */
+  .mobile-header {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .mobile-header h1 {
+    font-size: 1.875rem;
+    line-height: 1.1;
+  }
+
+  /* Make selects and inputs more mobile-friendly */
+  [data-radix-select-trigger] {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  /* Improve slider for mobile */
+  [data-radix-slider-root] {
+    height: 20px;
+  }
+
+  [data-radix-slider-thumb] {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Prevent horizontal overflow */
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  /* Ensure upload area is touch-friendly */
+  .upload-area {
+    min-height: 200px;
+    padding: 24px 16px;
+    touch-action: manipulation;
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: 20px;
+    /* Extra friendly rounded corners on mobile */
+  }
+
+  /* Image preview optimizations */
+  .preview-area {
+    min-height: 200px;
+    border-width: 1px;
+    border-radius: 16px;
+    /* Friendly rounded corners on mobile */
+  }
+
+  /* Fix scrolling issues */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Ensure blue header color is consistent */
+.mobile-header .status-badge {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgb(96, 165, 250);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
