@@ -1,1574 +1,376 @@
 "use client"
 
-import type React from "react"
-import ReactCrop, { type Crop } from "react-image-crop"
-import "react-image-crop/dist/ReactCrop.css"
+import React, { useState, useRef } from "react"
+import { Upload, Download, AlertCircle } from "lucide-react"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
-import { Download, FileWarning, ImageIcon, Info, Upload } from "lucide-react"
-import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+// Constants
+const MAX_FILE_SIZE = 1024 * 1024 * 1024 // 1GB
+const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
 
-// Add HTMLImageElement constructor type
-declare global {
-  interface Window {
-    Image: {
-      new(width?: number, height?: number): HTMLImageElement;
-    }
-  }
-  interface Navigator {
-    gpu?: {
-      requestAdapter(): Promise<GPUAdapter | null>;
-    }
-  }
-  interface GPUAdapter {
-    requestDevice(): Promise<GPUDevice>;
-  }
-  interface GPUDevice {
-    createCommandEncoder(): GPUCommandEncoder;
-    queue: GPUQueue;
-  }
-  interface GPUCommandEncoder {
-    beginRenderPass(descriptor: any): GPURenderPassEncoder;
-    finish(): GPUCommandBuffer;
-  }
-  interface GPURenderPassEncoder {
-    end(): void;
-  }
-  interface GPUQueue {
-    submit(commandBuffers: GPUCommandBuffer[]): void;
-  }
-  interface GPUCommandBuffer {}
-}
-
-// Increased from 50MB to 1GB
-const MAX_FILE_SIZE = 1024 * 1024 * 1024 // 1GB for initial upload
-
-// Compression formats
-type CompressionFormat = "auto" | "jpeg" | "png" | "webp" | "avif"
-
-export default function ImageCompressor() {
+export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
-  const [compressedImage, setCompressedImage] = useState<string | null>(null)
-  const [compressedMimeType, setCompressedMimeType] = useState<string | null>(null)
-  const [compressedFileExtension, setCompressedFileExtension] = useState<string | null>(null)
+  const [compressedFile, setCompressedFile] = useState<File | null>(null)
   const [quality, setQuality] = useState(80)
+  const [format, setFormat] = useState("jpeg")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [warning, setWarning] = useState<string | null>(null)
-  const [isCompressing, setIsCompressing] = useState(false)
-  const [originalSize, setOriginalSize] = useState<string | null>(null)
-  const [compressedSize, setCompressedSize] = useState<string | null>(null)
-  const [compressionProgress, setCompressionProgress] = useState(0)
-  const [format, setFormat] = useState<CompressionFormat>("auto")
-  const [backgroundColor, setBackgroundColor] = useState<"white" | "black">("white")
-  const [cornerRadius, setCornerRadius] = useState(0)
-  const [webGPUAvailable, setWebGPUAvailable] = useState(false)
-  const [useWebGPU, setUseWebGPU] = useState(false)
-  const [batchFiles, setBatchFiles] = useState<File[]>([])
-  const [batchMode, setBatchMode] = useState(false)
-  const [batchProgress, setBatchProgress] = useState<{[key: string]: number}>({})
-  const [batchResults, setBatchResults] = useState<{[key: string]: string}>({})
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [originalPreview, setOriginalPreview] = useState<string | null>(null)
-  const [originalSizeBytes, setOriginalSizeBytes] = useState<number>(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isGeneratingHeicPreview, setIsGeneratingHeicPreview] = useState(false)
-  const [crop, setCrop] = useState<Crop>()
-  const compressedImgRef = useRef<HTMLImageElement | null>(null)
-  
-  // PWA and offline states
-  const [isOnline, setIsOnline] = useState(true)
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
-  
-  // Cache for converted HEIC blobs to avoid reconversion
-  const heicCacheRef = useRef<Map<string, Blob>>(new Map())
-  
-  // PWA Installation and offline detection
-  useEffect(() => {
-    // Check online status
-    setIsOnline(navigator.onLine)
-    
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
-    
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    
-    // PWA install prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setShowInstallPrompt(true)
-    }
-    
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    
-    // Register service worker
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration)
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError)
-          })
-      })
-    }
-    
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
-  }, [])
-  
-  // Mobile performance optimization
-  useEffect(() => {
-    const isMobile = window.innerWidth < 768
-    if (isMobile) {
-      // Reduce WebGPU usage on mobile for better stability
-      setUseWebGPU(false)
-    }
-  }, [])
-  
-  // Install PWA
-  const handleInstallPWA = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-      if (outcome === 'accepted') {
-        setShowInstallPrompt(false)
-      }
-      setDeferredPrompt(null)
-    }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // Cleanup function for HEIC cache
-  const cleanupHeicCache = () => {
-    heicCacheRef.current.clear()
-  }
+  const validateFile = (file: File): string | null => {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size exceeds maximum limit of ${formatFileSize(MAX_FILE_SIZE)}`
+    }
 
-  // Force memory cleanup
-  const forceMemoryCleanup = () => {
-    // Clean up HEIC cache
-    cleanupHeicCache()
-    
-    // Revoke any existing object URLs
-    if (originalPreview) {
-      URL.revokeObjectURL(originalPreview)
-      setOriginalPreview(null)
+    // Check file type
+    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+    if (!SUPPORTED_FORMATS.includes(file.type) && !isHeic) {
+      return 'Unsupported file format. Please upload JPEG, PNG, WebP, or HEIC files.'
     }
-    if (compressedImage) {
-      URL.revokeObjectURL(compressedImage)
-      setCompressedImage(null)
-    }
-    
-    // Clean up batch results
-    Object.values(batchResults).forEach(url => {
-      if (url) URL.revokeObjectURL(url)
-    })
-    setBatchResults({})
-    
-    // Force garbage collection if available
-    if ('gc' in window && typeof (window as any).gc === 'function') {
-      (window as any).gc()
-    }
-  }
 
-  // Monitor memory usage and provide warnings
-  const checkMemoryUsage = (): string | null => {
-    if ('memory' in performance && (performance as any).memory) {
-      const memInfo = (performance as any).memory
-      const usedMB = Math.round(memInfo.usedJSHeapSize / 1024 / 1024)
-      const limitMB = Math.round(memInfo.jsHeapSizeLimit / 1024 / 1024)
-      const usage = (memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit) * 100
-      
-      if (usage > 80) {
-        return `High memory usage (${usedMB}MB/${limitMB}MB). Consider processing smaller images or clearing cache.`
-      } else if (usage > 60) {
-        return `Memory usage: ${usedMB}MB/${limitMB}MB. Performance may be affected with large images.`
-      }
-    }
     return null
   }
 
-  // Cleanup object URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      if (originalPreview) URL.revokeObjectURL(originalPreview)
-      if (compressedImage) URL.revokeObjectURL(compressedImage)
-      // Clean up HEIC cache
-      cleanupHeicCache()
-      // Reset loading states
-      setIsGeneratingHeicPreview(false)
-    }
-  }, [originalPreview, compressedImage])
-
-  // Dynamic import for heic2any to avoid SSR issues
-  const loadHeic2any = async () => {
-    if (typeof window === 'undefined') {
-      throw new Error('heic2any can only be used in the browser')
-    }
-    const { default: heic2any } = await import('heic2any')
-    return heic2any
-  }
-
-  // Check for WebGPU support
-  useEffect(() => {
-    const checkWebGPU = async () => {
-      if ('gpu' in navigator && navigator.gpu) {
+  const convertHeicToCanvas = async (file: File): Promise<HTMLCanvasElement> => {
+    return new Promise((resolve, reject) => {
+      // Try to use native browser support first
+      const img = new Image()
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx?.drawImage(img, 0, 0)
+        
+        resolve(canvas)
+      }
+      
+      img.onerror = async () => {
         try {
-          const adapter = await navigator.gpu.requestAdapter()
-          if (adapter) {
-            setWebGPUAvailable(true)
-            setUseWebGPU(true) // Auto-enable if available
+          // Fallback: Use heic2any library if available
+          if (typeof window !== 'undefined' && (window as any).heic2any) {
+            const convertedBlob = await (window as any).heic2any({
+              blob: file,
+              toType: "image/jpeg",
+              quality: 1
+            })
+            
+            const convertedImg = new Image()
+            convertedImg.onload = () => {
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              
+              canvas.width = convertedImg.width
+              canvas.height = convertedImg.height
+              ctx?.drawImage(convertedImg, 0, 0)
+              
+              resolve(canvas)
+            }
+            convertedImg.src = URL.createObjectURL(convertedBlob)
+          } else {
+            reject(new Error('HEIC support not available. Please convert to JPEG/PNG first.'))
           }
         } catch (error) {
-          console.log('WebGPU not available:', error)
-          setWebGPUAvailable(false)
+          reject(new Error('Failed to convert HEIC file'))
         }
       }
-    }
-    checkWebGPU()
-  }, [])
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + " bytes"
-    else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB"
-    else return (bytes / (1024 * 1024)).toFixed(2) + " MB"
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError(null)
-    setWarning(null)
-    setCompressedImage(null)
-    setCompressedMimeType(null)
-    setCompressedFileExtension(null)
-    setCompressedSize(null)
-    setCompressionProgress(0)
-    setIsGeneratingHeicPreview(false)
-    setCornerRadius(0)
-    setBatchResults({})
-    setBatchProgress({})
-
-    if (originalPreview) {
-      URL.revokeObjectURL(originalPreview)
-      setOriginalPreview(null)
-    }
-
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFiles = Array.from(e.target.files)
       
-      // Check if multiple files selected for batch mode
-      if (selectedFiles.length > 1) {
-        setBatchMode(true)
-        setBatchFiles(selectedFiles)
-        setFile(null) // Clear single file
-        
-        // Validate all files
-        let hasError = false
-        const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0)
-        
-        if (totalSize > MAX_FILE_SIZE) {
-          setError(`Total file size is too large. Maximum total size is ${formatFileSize(MAX_FILE_SIZE)}`)
-          hasError = true
-        }
-        
-        selectedFiles.forEach(file => {
-          if (!file.type.startsWith("image/") && !file.type.includes("heic") && !file.type.includes("heif")) {
-            setError("All files must be images (including HEIC/HEIF)")
-            hasError = true
-          }
-        })
-        
-        if (!hasError && totalSize > 200 * 1024 * 1024) {
-          setWarning("Large batch detected. Processing may take longer. WebGPU acceleration recommended.")
-        }
-        
-        // Check for HEIC files and add warning
-        const hasHEIC = selectedFiles.some(file => isHEIC(file))
-        if (hasHEIC && !hasError) {
-          setWarning("HEIC/HEIF files detected. They will be automatically converted to web-compatible formats.")
-        }
-      } else {
-        // Single file mode
-        const selectedFile = selectedFiles[0]
-        setBatchMode(false)
-        setBatchFiles([])
-        
-        if (selectedFile.size > MAX_FILE_SIZE) {
-          setError(`File is too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}`)
-          return
-        }
-
-        if (!selectedFile.type.startsWith("image/") && !isHEIC(selectedFile)) {
-          setError("Please select an image file (including HEIC/HEIF)")
-          return
-        }
-
-        // Add a warning for very large files
-        if (selectedFile.size > 200 * 1024 * 1024) {
-          setWarning("Very large image detected. Processing may take longer and use significant memory. WebGPU acceleration recommended.")
-        }
-        
-        // Check for HEIC and add appropriate warnings
-        if (isHEIC(selectedFile)) {
-          let heicWarning = "HEIC/HEIF file detected. It will be automatically converted to a web-compatible format."
-          
-          // Add memory warning for large HEIC files
-          if (selectedFile.size > 50 * 1024 * 1024) {
-            heicWarning += " Large HEIC files may require significant memory for conversion."
-          }
-          
-          // Check current memory usage
-          const memoryWarning = checkMemoryUsage()
-          if (memoryWarning) {
-            heicWarning += " " + memoryWarning
-          }
-          
-          setWarning(heicWarning)
-        } else {
-          // Check memory usage for non-HEIC files too
-          const memoryWarning = checkMemoryUsage()
-          if (memoryWarning && selectedFile.size > 200 * 1024 * 1024) {
-            setWarning(memoryWarning)
-          }
-        }
-
-        setFile(selectedFile)
-        setOriginalSizeBytes(selectedFile.size)
-        setOriginalSize(formatFileSize(selectedFile.size))
-        
-        // Generate preview (handles HEIC conversion)
-        generatePreview(selectedFile).then((previewUrl) => {
-          setOriginalPreview(previewUrl)
-        }).catch((error) => {
-          console.warn("Failed to generate preview:", error)
-          setOriginalPreview(null)
-        })
-
-        // Auto-select format based on file type
-        if (selectedFile.type === "image/png" || selectedFile.type === "image/gif") {
-          setFormat("png") // Keep transparency for PNG and GIF
-        } else if (selectedFile.type === "image/jpeg" || selectedFile.type === "image/jpg") {
-          setFormat("jpeg")
-        } else if (isHEIC(selectedFile)) {
-          setFormat("jpeg") // Convert HEIC to JPEG by default
-        } else {
-          setFormat("auto")
-        }
-      }
-    }
-  }
-
-  // Trigger file input click
-  const handleChooseFile = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
-    }
-  }
-
-  // Add more files to existing batch
-  const handleAddMoreFiles = () => {
-    if (fileInputRef.current) {
-      // Create a new input element to allow adding more files
-      const newInput = document.createElement('input')
-      newInput.type = 'file'
-      newInput.accept = 'image/*,image/heic,image/heif'
-      newInput.multiple = true
-      newInput.onchange = (e) => {
-        const target = e.target as HTMLInputElement
-        if (target.files && target.files.length > 0) {
-          const newFiles = Array.from(target.files)
-          
-          // Validate new files
-          let hasError = false
-          const currentTotalSize = batchFiles.reduce((sum, file) => sum + file.size, 0) + 
-                                  (file ? file.size : 0)
-          const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0)
-          
-          if (currentTotalSize + newTotalSize > MAX_FILE_SIZE) {
-            setError(`Total file size would exceed limit. Maximum total size is ${formatFileSize(MAX_FILE_SIZE)}`)
-            return
-          }
-          
-          newFiles.forEach(file => {
-            if (!file.type.startsWith("image/") && !isHEIC(file)) {
-              setError("All files must be images (including HEIC/HEIF)")
-              hasError = true
-            }
-          })
-          
-          if (!hasError) {
-            setError(null)
-            if (batchMode) {
-              setBatchFiles(prev => [...prev, ...newFiles])
-            } else {
-              // Convert to batch mode
-              setBatchMode(true)
-              setBatchFiles(file ? [file, ...newFiles] : newFiles)
-              setFile(null)
-              if (originalPreview) {
-                URL.revokeObjectURL(originalPreview)
-                setOriginalPreview(null)
-              }
-            }
-          }
-        }
-      }
-      newInput.click()
-    }
-  }
-
-  // Reset and allow new file selection
-  const handleReset = () => {
-    setFile(null)
-    setBatchFiles([])
-    setBatchMode(false)
-    setBatchResults({})
-    setBatchProgress({})
-    setCompressedImage(null)
-    setCompressedMimeType(null)
-    setCompressedFileExtension(null)
-    setCompressedSize(null)
-    setCompressionProgress(0)
-    setError(null)
-    setWarning(null)
-    setCornerRadius(0)
-    setIsGeneratingHeicPreview(false)
-    
-    if (originalPreview) {
-      URL.revokeObjectURL(originalPreview)
-      setOriginalPreview(null)
-    }
-    
-    // Clear all batch result URLs
-    Object.values(batchResults).forEach(url => {
-      if (url) URL.revokeObjectURL(url)
-    })
-    
-    // Clean up HEIC cache to free memory
-    cleanupHeicCache()
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
-
-  const handleApplyCrop = async () => {
-    if (compressedImgRef.current && crop?.width && crop?.height && compressedMimeType) {
-      const image = compressedImgRef.current
-      const scaleX = image.naturalWidth / image.width
-      const scaleY = image.naturalHeight / image.height
-
-      const pixelCrop = {
-        x: crop.x * scaleX,
-        y: crop.y * scaleY,
-        width: crop.width * scaleX,
-        height: crop.height * scaleY,
-        unit: 'px' as const,
-      }
-
-      const croppedBlob = await getCroppedImg(
-        image,
-        pixelCrop,
-        compressedMimeType
-      )
-      
-      if (compressedImage) {
-        URL.revokeObjectURL(compressedImage)
-      }
-
-      const croppedUrl = URL.createObjectURL(croppedBlob)
-      setCompressedImage(croppedUrl)
-      setCompressedSize(formatFileSize(croppedBlob.size))
-      setCrop(undefined) // Reset crop selection
-    }
-  }
-
-  function getCroppedImg(image: HTMLImageElement, crop: Crop, mimeType: string): Promise<Blob> {
-    const canvas = document.createElement("canvas")
-    canvas.width = crop.width
-    canvas.height = crop.height
-    const ctx = canvas.getContext("2d")
-
-    if (!ctx) {
-      return Promise.reject(new Error("Could not get canvas context"))
-    }
-
-    ctx.drawImage(
-      image,
-      crop.x,
-      crop.y,
-      crop.width,
-      crop.height,
-      0,
-      0,
-      crop.width,
-      crop.height
-    )
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error("Canvas is empty"))
-            return
-          }
-          resolve(blob)
-        },
-        mimeType,
-        1 // Use max quality for cropping, compression is already done
-      )
+      img.src = URL.createObjectURL(file)
     })
   }
 
-  // Get the appropriate MIME type based on format selection
-  const getMimeType = (originalType: string, selectedFormat: CompressionFormat): string => {
-    switch (selectedFormat) {
-      case "jpeg":
-        return "image/jpeg"
-      case "png":
-        return "image/png"
-      case "webp":
-        return "image/webp"
-      case "avif":
-        return "image/avif"
-      case "auto":
-        return originalType
-      default:
-        return "image/jpeg"
-    }
-  }
-
-  // Check if format supports transparency
-  const supportsTransparency = (formatType: CompressionFormat, originalType?: string): boolean => {
-    if (formatType === "auto" && originalType) {
-      return originalType === "image/png" || originalType === "image/webp" || originalType === "image/avif" || originalType === "image/gif"
-    }
-    return formatType === "png" || formatType === "webp" || formatType === "avif"
-  }
-
-  // Check if file is HEIC/HEIF
-  const isHEIC = (file: File): boolean => {
-    const fileName = file.name.toLowerCase()
-    const mimeType = file.type.toLowerCase()
-    
-    // Check file extension
-    const isHEICExtension = fileName.endsWith('.heic') || fileName.endsWith('.heif')
-    
-    // Check MIME type (may not always be set correctly)
-    const isHEICMime = mimeType.includes("heic") || mimeType.includes("heif") || 
-                       mimeType === "image/heic" || mimeType === "image/heif"
-    
-    return isHEICExtension || isHEICMime
-  }
-
-  // Memory-efficient HEIC conversion with caching
-  const convertHeicToBlob = async (file: File, quality: number = 0.7): Promise<Blob> => {
-    // Create a cache key based on file and quality
-    const cacheKey = `${file.name}-${file.size}-${file.lastModified}-${quality}`
-    
-    // Check cache first
-    if (heicCacheRef.current.has(cacheKey)) {
-      console.log("Using cached HEIC conversion")
-      return heicCacheRef.current.get(cacheKey)!
-    }
-    
-    // Check available memory before conversion
-    if ('memory' in performance && (performance as any).memory) {
-      const memInfo = (performance as any).memory
-      const availableMemory = memInfo.jsHeapSizeLimit - memInfo.usedJSHeapSize
-      const estimatedConversionMemory = file.size * 3 // Rough estimate
-      
-      if (availableMemory < estimatedConversionMemory) {
-        // Try to free up memory first
-        cleanupHeicCache()
-        // Force garbage collection if available
-        if ('gc' in window && typeof (window as any).gc === 'function') {
-          (window as any).gc()
-        }
-      }
-    }
-    
-    try {
-      // Limit file size for HEIC conversion to prevent memory issues
-      const maxHeicSize = 50 * 1024 * 1024 // Reduced to 50MB limit for HEIC conversion
-      if (file.size > maxHeicSize) {
-        throw new Error(`HEIC file too large for conversion. Maximum size: ${formatFileSize(maxHeicSize)}. Try compressing the HEIC file first or use a smaller image.`)
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0]
+    if (selectedFile) {
+      const validationError = validateFile(selectedFile)
+      if (validationError) {
+        setError(validationError)
+        return
       }
       
-      const heic2any = await loadHeic2any()
-      const convertedBlob = await heic2any({
-        blob: file,
-        toType: "image/jpeg",
-        quality: quality // Use variable quality
-      }) as Blob
-      
-      // Cache the result but limit cache size
-      if (heicCacheRef.current.size >= 3) {
-        // Remove oldest entry
-        const firstKey = heicCacheRef.current.keys().next().value
-        if (firstKey) {
-          heicCacheRef.current.delete(firstKey)
-        }
-      }
-      
-      heicCacheRef.current.set(cacheKey, convertedBlob)
-      return convertedBlob
-    } catch (error) {
-      throw new Error(`HEIC conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setFile(selectedFile)
+      setCompressedFile(null)
+      setError(null)
     }
-  }
-
-  // Generate preview for any file type, including HEIC
-  const generatePreview = async (file: File): Promise<string> => {
-    if (isHEIC(file)) {
-      setIsGeneratingHeicPreview(true)
-      try {
-        // Use lower quality for preview to save memory
-        const convertedBlob = await convertHeicToBlob(file, 0.5)
-        return URL.createObjectURL(convertedBlob)
-      } catch (error) {
-        console.warn("Failed to generate HEIC preview:", error)
-        return ""
-      } finally {
-        setIsGeneratingHeicPreview(false)
-      }
-    } else {
-      return URL.createObjectURL(file)
-    }
-  }
-
-  // Convert HEIC to supported format using heic2any
-  const convertHEICToCanvas = async (file: File): Promise<HTMLImageElement> => {
-    try {
-      // First try to load directly (in case browser supports HEIC)
-      const tryDirectLoad = (): Promise<HTMLImageElement> => {
-        return new Promise((resolve, reject) => {
-          const img = new window.Image()
-          img.crossOrigin = "anonymous"
-          
-          const timeout = setTimeout(() => {
-            img.removeEventListener('load', onLoad)
-            img.removeEventListener('error', onError)
-            URL.revokeObjectURL(img.src) // Clean up on timeout
-            reject(new Error("Direct HEIC load timeout"))
-          }, 2000)
-          
-          const onLoad = () => {
-            clearTimeout(timeout)
-            URL.revokeObjectURL(img.src) // Clean up object URL after loading
-            resolve(img)
-          }
-          
-          const onError = () => {
-            clearTimeout(timeout)
-            URL.revokeObjectURL(img.src) // Clean up on error
-            reject(new Error("Direct HEIC load failed"))
-          }
-          
-          img.addEventListener('load', onLoad)
-          img.addEventListener('error', onError)
-          img.src = URL.createObjectURL(file)
-        })
-      }
-
-      try {
-        // Try direct loading first
-        return await tryDirectLoad()
-      } catch {
-        // Fall back to heic2any conversion using cached/optimized method
-        console.log("Direct HEIC loading failed, converting with heic2any...")
-
-        // Use medium quality for processing (balance between quality and memory)
-        const convertedBlob = await convertHeicToBlob(file, 0.8)
-
-        return new Promise((resolve, reject) => {
-          const img = new window.Image()
-          img.crossOrigin = "anonymous"
-          
-          img.onload = () => {
-            // Don't revoke the URL immediately as we might need it for processing
-            resolve(img)
-          }
-          
-          img.onerror = () => {
-            URL.revokeObjectURL(img.src)
-            reject(new Error("Failed to load converted HEIC image"))
-          }
-          
-          img.src = URL.createObjectURL(convertedBlob)
-        })
-      }
-    } catch (error) {
-      throw new Error(`HEIC conversion failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
-
-  // WebGPU-accelerated image processing
-  const processImageWithWebGPU = async (canvas: HTMLCanvasElement, width: number, height: number, cornerRadius: number): Promise<void> => {
-    if (!navigator.gpu || !useWebGPU) {
-      return Promise.resolve()
-    }
-
-    try {
-      const adapter = await navigator.gpu.requestAdapter()
-      if (!adapter) return
-
-      const device = await adapter.requestDevice()
-      const context = canvas.getContext('webgpu')
-      
-      if (context) {
-        // WebGPU context configuration would go here
-        // For now, we'll fall back to Canvas 2D with performance hints
-        console.log('WebGPU context available - using optimized rendering')
-      }
-    } catch (error) {
-      console.log('WebGPU processing failed, falling back to Canvas 2D:', error)
-    }
-  }
-
-  // Client-side image compression using Canvas
-  const compressImageInBrowser = (file: File, quality: number, selectedFormat: CompressionFormat, cornerRadius: number = 0): Promise<Blob> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Check memory before starting compression
-        if ('memory' in performance && (performance as any).memory) {
-          const memInfo = (performance as any).memory
-          const availableMemory = memInfo.jsHeapSizeLimit - memInfo.usedJSHeapSize
-          const estimatedNeeded = file.size * 4 // Rough estimate for canvas processing
-          
-          if (availableMemory < estimatedNeeded && availableMemory < 100 * 1024 * 1024) {
-            // Try to free up memory first
-            console.warn("Low memory detected, attempting cleanup...")
-
-            // Wait a bit for cleanup to complete
-            await new Promise(resolve => setTimeout(resolve, 100))
-          }
-        }
-
-        let img: HTMLImageElement
-        
-        if (isHEIC(file)) {
-          // Handle HEIC files
-          try {
-            img = await convertHEICToCanvas(file)
-          } catch (heicError) {
-            reject(heicError)
-            return
-          }
-        } else {
-          // Handle regular image files
-          img = new window.Image()
-          img.crossOrigin = "anonymous"
-        }
-
-        const handleImageLoad = async () => {
-          let canvas: HTMLCanvasElement | null = null
-          let ctx: CanvasRenderingContext2D | null = null
-          
-          try {
-            // Create canvas - for now stick with HTMLCanvas for compatibility
-            canvas = canvasRef.current || document.createElement("canvas")
-            ctx = canvas.getContext("2d")
-
-            if (!ctx) {
-              reject(new Error("Could not get canvas context"))
-              return
-            }
-
-            // Enable performance optimizations
-            if (useWebGPU) {
-              ctx.imageSmoothingEnabled = true
-              ctx.imageSmoothingQuality = 'high'
-            }
-
-            // Set canvas dimensions to match image
-            let width = img.width
-            let height = img.height
-
-            // Scale down very large images to improve performance
-            const MAX_DIMENSION = useWebGPU ? 8000 : 4000 // Higher limit with WebGPU
-            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-              const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
-              width = Math.floor(width * ratio)
-              height = Math.floor(height * ratio)
-            }
-
-            canvas.width = width
-            canvas.height = height
-
-            // Use WebGPU acceleration if available (non-blocking)
-            if (useWebGPU && webGPUAvailable) {
-              processImageWithWebGPU(canvas, width, height, cornerRadius).catch(console.error)
-            }
-
-            // For PNG with transparency, set background color only for JPEG
-            if (file.type === "image/png" && selectedFormat === "jpeg") {
-              ctx.fillStyle = backgroundColor
-              ctx.fillRect(0, 0, width, height)
-            }
-
-            // Apply corner rounding if format supports transparency and corner radius is set
-            const shouldApplyCornerRadius = cornerRadius > 0 && supportsTransparency(selectedFormat, file.type)
-            
-            if (shouldApplyCornerRadius) {
-              // Create rounded rectangle path
-              const radiusInPixels = Math.min(cornerRadius, Math.min(width, height) / 2)
-              
-              ctx.save()
-              ctx.beginPath()
-              
-              // Use roundRect if available, otherwise fallback to manual path
-              if (typeof ctx.roundRect === 'function') {
-                ctx.roundRect(0, 0, width, height, radiusInPixels)
-              } else {
-                // Manual rounded rectangle for older browsers
-                ctx.moveTo(radiusInPixels, 0)
-                ctx.lineTo(width - radiusInPixels, 0)
-                ctx.quadraticCurveTo(width, 0, width, radiusInPixels)
-                ctx.lineTo(width, height - radiusInPixels)
-                ctx.quadraticCurveTo(width, height, width - radiusInPixels, height)
-                ctx.lineTo(radiusInPixels, height)
-                ctx.quadraticCurveTo(0, height, 0, height - radiusInPixels)
-                ctx.lineTo(0, radiusInPixels)
-                ctx.quadraticCurveTo(0, 0, radiusInPixels, 0)
-              }
-              
-              ctx.clip()
-            }
-
-            // Clear canvas and draw image
-            ctx.drawImage(img, 0, 0, width, height)
-            
-            if (shouldApplyCornerRadius) {
-              ctx.restore()
-            }
-
-            // Convert to blob with specified quality
-            const mimeType = getMimeType(file.type, selectedFormat)
-
-            // Adjust quality based on format
-            let adjustedQuality = quality / 100
-            if (mimeType === "image/png") {
-              // PNG uses compression level 0-9, so map our 1-100 to that range
-              // Lower values mean less compression but better quality
-              adjustedQuality = 1 - quality / 100
-            }
-
-            canvas.toBlob(
-              (blob) => {
-                // Clean up canvas if it was created temporarily
-                if (canvas !== canvasRef.current) {
-                  ctx = null
-                  canvas = null
-                }
-                
-                if (blob) {
-                  resolve(blob)
-                } else {
-                  reject(new Error("Canvas toBlob failed - possibly out of memory"))
-                }
-              },
-              mimeType,
-              mimeType === "image/png" ? undefined : adjustedQuality,
-            )
-          } catch (err) {
-            // Clean up canvas on error
-            if (canvas !== canvasRef.current) {
-              ctx = null
-              canvas = null
-            }
-            
-            // Check if this is a memory error
-            const errorMessage = err instanceof Error ? err.message : String(err)
-            if (errorMessage.toLowerCase().includes('memory') || 
-                errorMessage.toLowerCase().includes('out of') ||
-                errorMessage.toLowerCase().includes('allocation')) {
-              reject(new Error("Out of memory during image processing. Try reducing the image size or using a smaller corner radius."))
-            } else {
-              reject(new Error(`Error processing image: ${errorMessage}`))
-            }
-          } finally {
-            // Final cleanup
-            if (canvas && canvas !== canvasRef.current) {
-              ctx = null
-              canvas = null
-            }
-          }
-        }
-
-        if (isHEIC(file)) {
-          // Image is already loaded for HEIC files
-          handleImageLoad()
-        } else {
-          // Set up event handlers for regular images
-          img.onload = handleImageLoad
-          
-          img.onerror = () => {
-            reject(new Error("Error loading image"))
-          }
-
-          // Load image from file
-          img.src = URL.createObjectURL(file)
-        }
-      } catch (err) {
-        reject(new Error(`Error setting up image processing: ${err instanceof Error ? err.message : String(err)}`))
-      }
-    })
   }
 
   const handleCompress = async () => {
-    if (batchMode && batchFiles.length > 0) {
-      return handleBatchCompress()
-    }
-    
-    if (!file) {
-      setError("Please select an image first")
-      return
-    }
+    if (!file) return
 
-    setIsCompressing(true)
+    setIsProcessing(true)
+    setProgress(0)
     setError(null)
-    setCompressionProgress(0)
+
+    // Progress simulation
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(interval)
+          return 90
+        }
+        return prev + 10
+      })
+    }, 150)
 
     try {
-      // Check for AVIF support
-      if (format === "avif") {
-        const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
-        if (!ctx) {
-          throw new Error("Could not get canvas context")
-        }
-        canvas.width = 1
-        canvas.height = 1
-        const isAvifSupported = await new Promise((resolve) => {
-          canvas.toBlob(
-            (blob) => resolve(blob !== null),
-            "image/avif",
-            0.5
-          )
+      let canvas: HTMLCanvasElement
+
+      // Check if it's a HEIC file
+      const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+      
+      if (isHeic) {
+        // Convert HEIC to canvas
+        canvas = await convertHeicToCanvas(file)
+      } else {
+        // Handle regular image files
+        canvas = await new Promise((resolve, reject) => {
+          const img = new Image()
+          
+          img.onload = () => {
+            const newCanvas = document.createElement('canvas')
+            const ctx = newCanvas.getContext('2d')
+            
+            newCanvas.width = img.width
+            newCanvas.height = img.height
+            ctx?.drawImage(img, 0, 0)
+            
+            resolve(newCanvas)
+          }
+          
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = URL.createObjectURL(file)
         })
-        if (!isAvifSupported) {
-          setWarning("Your browser does not support AVIF encoding. The image will be converted to WebP instead.")
-          setFormat("webp")
-        }
       }
 
-      setCompressionProgress(20)
-
-      // Try multiple compression strategies if needed
-      setCompressionProgress(30)
-
-      // First attempt with selected format and quality
-      let compressedBlob = await compressImageInBrowser(file, quality, format, cornerRadius)
-      let finalMimeType = getMimeType(file.type, format)
-      let finalExtension = format === "auto" ? (file.name.split(".").pop() || 'jpg') : format
-      setCompressionProgress(70)
-
-      // If the compressed size is larger than the original, try different strategies
-      if (compressedBlob.size >= file.size) {
-        // For PNGs, try JPEG if not explicitly requested PNG
-        if (file.type === "image/png" && format !== "png") {
-          setCompressionProgress(75)
-          compressedBlob = await compressImageInBrowser(file, quality, "jpeg", 0) // No corner radius for JPEG
-          finalMimeType = "image/jpeg"
-          finalExtension = "jpeg"
+      // Compress the image
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const fileExtension = format === 'jpeg' ? 'jpg' : format
+          const originalName = file.name.split('.')[0]
+          const compressedFile = new File([blob], `${originalName}_compressed.${fileExtension}`, {
+            type: `image/${format}`,
+            lastModified: Date.now()
+          })
+          setCompressedFile(compressedFile)
+          setProgress(100)
+          setIsProcessing(false)
+        } else {
+          throw new Error('Compression failed')
         }
-
-        // If still larger, try WebP
-        if (compressedBlob.size >= file.size && format !== "webp") {
-          setCompressionProgress(80)
-          compressedBlob = await compressImageInBrowser(file, quality, "webp", cornerRadius)
-          finalMimeType = "image/webp"
-          finalExtension = "webp"
-        }
-
-        // If still larger, try with lower quality
-        if (compressedBlob.size >= file.size && quality > 50) {
-          setCompressionProgress(85)
-          const fallbackFormat = format === "auto" ? "jpeg" : format
-          const fallbackRadius = supportsTransparency(fallbackFormat, file.type) ? cornerRadius : 0
-          compressedBlob = await compressImageInBrowser(file, 50, fallbackFormat, fallbackRadius)
-          finalMimeType = getMimeType(file.type, fallbackFormat)
-          finalExtension = fallbackFormat
-        }
-
-        // If all attempts failed to reduce size
-        if (compressedBlob.size >= file.size) {
-          setWarning("Compression resulted in a larger file. The image may already be optimized.")
-        }
-      }
-
-      // Create object URL for display
-      const objectUrl = URL.createObjectURL(compressedBlob)
-      setCompressedImage(objectUrl)
-      setCompressedMimeType(finalMimeType)
-      setCompressedFileExtension(finalExtension)
-      setCompressedSize(formatFileSize(compressedBlob.size))
-      setCompressionProgress(100)
-
-      console.log(`Original size: ${file.size}, Compressed size: ${compressedBlob.size}`)
-    } catch (err) {
-      console.error("Compression error:", err)
-      setError(err instanceof Error ? err.message : "Failed to compress image")
-    } finally {
-      setIsCompressing(false)
+      }, `image/${format}`, quality / 100)
+      
+    } catch (error) {
+      console.error('Compression failed:', error)
+      setError(error instanceof Error ? error.message : 'Compression failed')
+      setIsProcessing(false)
+      setProgress(0)
+      clearInterval(interval)
     }
   }
 
-  const handleBatchCompress = async () => {
-    setIsCompressing(true)
-    setError(null)
-    setBatchResults({})
-    setBatchProgress({})
-
-    try {
-      const results: {[key: string]: string} = {}
-      
-      for (let i = 0; i < batchFiles.length; i++) {
-        const file = batchFiles[i]
-        const fileKey = `${file.name}_${i}`
-        
-        try {
-          setBatchProgress(prev => ({ ...prev, [fileKey]: 0 }))
-          
-          // Compress each file
-          const compressedBlob = await compressImageInBrowser(file, quality, format, cornerRadius)
-          const objectUrl = URL.createObjectURL(compressedBlob)
-          results[fileKey] = objectUrl
-          
-          setBatchProgress(prev => ({ ...prev, [fileKey]: 100 }))
-          
-          // Update overall progress
-          setCompressionProgress(Math.round(((i + 1) / batchFiles.length) * 100))
-        } catch (err) {
-          console.error(`Error compressing ${file.name}:`, err)
-          setBatchProgress(prev => ({ ...prev, [fileKey]: -1 })) // -1 indicates error
-        }
-      }
-      
-      setBatchResults(results)
-    } catch (err) {
-      console.error("Batch compression error:", err)
-      setError(err instanceof Error ? err.message : "Failed to compress batch")
-    } finally {
-      setIsCompressing(false)
-    }
+  const handleDownload = () => {
+    if (!compressedFile) return
+    
+    const url = URL.createObjectURL(compressedFile)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = compressedFile.name
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
-  // Calculate size reduction percentage
-  const getSizeReduction = (): number | null => {
-    if (!compressedSize || !file) return null
-
-    // Extract numeric value from formatted size string
-    const compressedBytes = Number.parseFloat(compressedSize.replace(/[^\d.-]/g, ""))
-
-    // Determine the unit (KB or MB)
-    const isKB = compressedSize.includes("KB")
-    const isMB = compressedSize.includes("MB")
-
-    // Convert to bytes for comparison
-    let compressedSizeBytes = compressedBytes
-    if (isKB) compressedSizeBytes *= 1024
-    if (isMB) compressedSizeBytes *= 1024 * 1024
-
-    // Calculate percentage reduction
-    return Math.round((1 - compressedSizeBytes / file.size) * 100)
+  const getSizeReduction = () => {
+    if (!file || !compressedFile) return 0
+    return Math.round(((file.size - compressedFile.size) / file.size) * 100)
   }
-
-  const sizeReduction = getSizeReduction()
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
       <header className="mobile-header">
-        <div className="w-full">
-          <div className="header-content px-4">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground">
-              PixSqueeze
-            </h1>
-            <div className="status-badges">
-              {webGPUAvailable && useWebGPU && (
-                <div className="status-badge bg-blue-500/20 text-blue-400">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <span className="hidden sm:inline">WebGPU</span>
-                  <span className="sm:hidden">GPU</span>
+        <div className="header-content">
+          <h1>PixSqueeze</h1>
+          <div className="status-badges">
+            <div className="status-badge">
+              <div style={{ width: '8px', height: '8px', background: '#60a5fa', borderRadius: '50%' }}></div>
+              <span>GPU</span>
+            </div>
+          </div>
+        </div>
+        <p className="subtitle">Your images, only lighter.</p>
+      </header>
+
+      {/* Main Content */}
+      <main className="mobile-container">
+        {!file ? (
+          /* Upload Area */
+          <div>
+            {error && (
+              <div style={{ 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertCircle size={20} color="#ef4444" />
+                <span style={{ color: '#fca5a5', fontSize: '0.9rem' }}>{error}</span>
+              </div>
+            )}
+            
+            <div 
+              className="upload-area"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,image/heic,image/heif"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+              <Upload size={32} color="rgba(255, 255, 255, 0.7)" />
+              <h3>Drop your image here</h3>
+              <p>Single file processing</p>
+              <p>Supports: JPEG, PNG, WebP, HEIC/HEIF</p>
+              <p>Maximum size: {formatFileSize(MAX_FILE_SIZE)}</p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {/* Image Preview */}
+            <div className="image-preview">
+              <img 
+                src={URL.createObjectURL(file)} 
+                alt="Original" 
+                style={{ maxHeight: '300px', objectFit: 'contain' }}
+              />
+            </div>
+
+            {/* Controls */}
+            <div className="mobile-controls">
+              <div className="control-group">
+                <div className="control-label">
+                  <h4>Quality</h4>
+                  <span className="value">{quality}%</span>
                 </div>
+                <div className="mobile-slider">
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={quality}
+                    onChange={(e) => setQuality(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="control-group">
+                <div className="control-label">
+                  <h4>Format</h4>
+                </div>
+                <select 
+                  className="mobile-select"
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value)}
+                >
+                  <option value="jpeg">JPEG (Best compression)</option>
+                  <option value="png">PNG (Lossless)</option>
+                  <option value="webp">WebP (Modern)</option>
+                </select>
+                {file?.name.toLowerCase().includes('.heic') && (
+                  <p style={{ 
+                    fontSize: '0.85rem', 
+                    color: 'rgba(255, 255, 255, 0.6)', 
+                    marginTop: '8px',
+                    lineHeight: '1.4'
+                  }}>
+                    💡 HEIC files will be converted to your selected format
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Progress */}
+            {isProcessing && (
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+            )}
+
+            {/* Stats */}
+            {compressedFile && (
+              <div className="stats-card">
+                <div className="stats-row">
+                  <span className="stats-label">Original Size</span>
+                  <span className="stats-value">{formatFileSize(file.size)}</span>
+                </div>
+                <div className="stats-row">
+                  <span className="stats-label">Compressed Size</span>
+                  <span className="stats-value success">{formatFileSize(compressedFile.size)}</span>
+                </div>
+                <div className="stats-row">
+                  <span className="stats-label">Size Reduction</span>
+                  <span className="stats-value success">-{getSizeReduction()}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px' }}>
+              {!compressedFile && (
+                <button 
+                  className="mobile-button"
+                  onClick={handleCompress}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? 'Compressing...' : 'Compress Image'}
+                </button>
               )}
-              {!isOnline && (
-                <div className="status-badge bg-orange-500/20 text-orange-400">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                  <span className="hidden sm:inline">Offline Mode</span>
-                  <span className="sm:hidden">Offline</span>
-                </div>
+              
+              {compressedFile && (
+                <>
+                  <button 
+                    className="mobile-button"
+                    onClick={handleDownload}
+                  >
+                    <Download size={20} style={{ marginRight: '8px' }} />
+                    Download
+                  </button>
+                  <button 
+                    className="mobile-button secondary"
+                    onClick={() => {
+                      setFile(null)
+                      setCompressedFile(null)
+                      setProgress(0)
+                    }}
+                  >
+                    New Image
+                  </button>
+                </>
               )}
             </div>
           </div>
-          <p className="subtitle text-base sm:text-lg md:text-xl text-foreground/70 px-4">
-            Your images, only lighter. {!isOnline ? "Works offline!" : ""}
-          </p>
-          
-          {/* PWA Install Prompt */}
-          {showInstallPrompt && (
-            <div className="pwa-install-prompt mx-4">
-              <div className="pwa-install-content">
-                <div>
-                  <h3 className="text-base sm:text-lg font-medium text-blue-400">Install PixSqueeze</h3>
-                  <p className="text-sm text-blue-300">Add to your home screen for faster access and offline use</p>
-                </div>
-                <div className="pwa-install-buttons">
-                  <Button
-                    onClick={handleInstallPWA}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
-                  >
-                    Install
-                  </Button>
-                  <Button
-                    onClick={() => setShowInstallPrompt(false)}
-                    size="sm"
-                    variant="outline"
-                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 flex-1 sm:flex-none"
-                  >
-                    Later
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
-        <Card className="bg-transparent border-0">
-          <CardContent className="p-0">
-            {!file && !batchMode ? (
-              <div className="upload-area">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,image/heic,image/heif"
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <Label
-                  htmlFor="file-upload"
-                  className="flex flex-col items-center gap-6 cursor-pointer h-full"
-                >
-                  <Upload className="h-8 w-8 text-foreground/70" />
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-medium">
-                      Drop your image(s) here
-                    </h3>
-                    <p className="text-sm text-foreground/70">
-                      Single file or multiple files for batch processing
-                    </p>
-                    <p className="text-sm text-foreground/70">
-                      Supports: JPEG, PNG, WebP, AVIF, GIF, HEIC/HEIF
-                    </p>
-                    <p className="text-sm text-foreground/70">
-                      Maximum total size: {formatFileSize(MAX_FILE_SIZE)}
-                    </p>
-                    {!isOnline && (
-                      <p className="text-sm text-orange-400 font-medium">
-                        ✓ Offline mode - All processing happens locally
-                      </p>
-                    )}
-                  </div>
-                </Label>
-              </div>
-            ) : (
-              <div className="space-y-12">
-                {/* File Management Header */}
-                <div className="file-management-header">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                    {batchMode ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-base sm:text-lg font-medium">Batch Mode</span>
-                        <span className="status-indicator bg-blue-500/20 text-blue-400">
-                          {batchFiles.length} files
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        <span className="text-base sm:text-lg font-medium">Single Mode</span>
-                        <span className="text-sm text-foreground/70 truncate max-w-[200px] sm:max-w-none">
-                          {file?.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="file-management-buttons">
-                    <Button
-                      onClick={handleAddMoreFiles}
-                      variant="outline"
-                      className="button-minimal text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
-                    >
-                      <span className="hidden sm:inline">Add More Files</span>
-                      <span className="sm:hidden">Add Files</span>
-                    </Button>
-                    <Button
-                      onClick={handleReset}
-                      variant="outline"
-                      className="button-minimal text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
-                    >
-                      <span className="hidden sm:inline">Start Over</span>
-                      <span className="sm:hidden">Reset</span>
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        forceMemoryCleanup()
-                        setWarning("Memory cache cleared. Available memory may have increased.")
-                        setTimeout(() => setWarning(null), 3000)
-                      }}
-                      variant="outline"
-                      className="button-minimal text-orange-600 hover:text-orange-700 text-sm h-10 md:h-12 px-4 md:px-6 touch-manipulation"
-                      title="Clear memory cache to free up RAM"
-                    >
-                      <span className="hidden sm:inline">Free Memory</span>
-                      <span className="sm:hidden">Memory</span>
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Controls Section - Mobile Optimized */}
-                <div className="mobile-controls space-y-6 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-8">
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base font-medium">Quality</Label>
-                        <span className="text-sm text-foreground/70 font-medium">{quality}%</span>
-                      </div>
-                      <Slider
-                        id="quality-slider"
-                        min={1}
-                        max={100}
-                        step={1}
-                        value={[quality]}
-                        onValueChange={(value) => setQuality(value[0])}
-                        className="mt-2 touch-manipulation ios-slider"
-                        aria-label="Image quality percentage"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                      <Label className="text-base font-medium">Format</Label>
-                      <Select value={format} onValueChange={(value) => setFormat(value as CompressionFormat)}>
-                        <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
-                          <SelectValue placeholder="Select format" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Auto (Same as original)</SelectItem>
-                          <SelectItem value="jpeg">JPEG</SelectItem>
-                          <SelectItem value="png">PNG</SelectItem>
-                          <SelectItem value="webp">WebP</SelectItem>
-                          <SelectItem value="avif">AVIF</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {format === "jpeg" && file?.type === "image/png" && (
-                      <div className="space-y-4">
-                        <Label className="text-base font-medium">Background Color</Label>
-                        <Select value={backgroundColor} onValueChange={(value) => setBackgroundColor(value as "white" | "black")}>
-                          <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
-                            <SelectValue placeholder="Select background color" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="white">White</SelectItem>
-                            <SelectItem value="black">Black</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {supportsTransparency(format, file?.type) && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-base font-medium">Corner Radius</Label>
-                          <span className="text-sm text-foreground/70 font-medium">
-                            {cornerRadius === 9999 ? "Circle" : cornerRadius > 0 ? `${cornerRadius}px` : "None"}
-                          </span>
-                        </div>
-                        <Select onValueChange={(value) => setCornerRadius(Number(value))}>
-                          <SelectTrigger className="w-full bg-transparent border-foreground/20 h-12 md:h-14 text-base touch-manipulation">
-                            <SelectValue placeholder="Select corner radius" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">None</SelectItem>
-                            <SelectItem value="24">24px</SelectItem>
-                            <SelectItem value="48">48px</SelectItem>
-                            <SelectItem value="128">128px</SelectItem>
-                            <SelectItem value="256">256px</SelectItem>
-                            <SelectItem value="9999">Circle</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-foreground/60">
-                          Add rounded corners to images with transparent backgrounds (PNG, WebP, AVIF)
-                        </p>
-                      </div>
-                    )}
-
-                    {webGPUAvailable && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-base font-medium">WebGPU Acceleration</Label>
-                          <button
-                            type="button"
-                            onClick={() => setUseWebGPU(!useWebGPU)}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                              useWebGPU ? 'bg-blue-600' : 'bg-gray-200'
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                                useWebGPU ? 'translate-x-7' : 'translate-x-1'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                        <p className="text-xs text-foreground/60">
-                          Use GPU acceleration for faster processing of large images
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Compress Button - Prominent and always visible */}
-                  <div className="mt-8 flex items-center justify-center">
-                    <Button
-                      onClick={handleCompress}
-                      disabled={(!file && !batchMode) || isCompressing || isGeneratingHeicPreview}
-                      className="button-minimal px-8 py-6 text-lg w-full max-w-sm h-14 touch-manipulation md:max-w-md lg:max-w-sm"
-                    >
-                      {isCompressing ? (
-                        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                          <span className="text-sm sm:text-base font-medium">
-                            {batchMode ? "Processing Batch" : "Processing"}
-                          </span>
-                          {useWebGPU && webGPUAvailable && (
-                            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">GPU</span>
-                          )}
-                          <Progress value={compressionProgress} className="w-16 sm:w-20" />
-                        </div>
-                      ) : isGeneratingHeicPreview ? (
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <span className="text-sm sm:text-base font-medium">Converting HEIC Preview...</span>
-                          <div className="w-4 h-4 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
-                        </div>
-                      ) : (
-                        <span className="text-base sm:text-lg font-semibold">
-                          {batchMode ? `Compress ${batchFiles.length} Images` : "Compress Image"}
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Image Preview Section */}
-                {batchMode ? (
-                  <div className="space-y-6">
-                    <h3 className="text-base sm:text-lg font-medium">Batch Results</h3>
-                    {batchFiles.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {batchFiles.map((file, index) => {
-                          const fileKey = `${file.name}_${index}`
-                          const progress = batchProgress[fileKey] || 0
-                          const result = batchResults[fileKey]
-                          const isError = progress === -1
-                          
-                          return (
-                            <div key={fileKey} className="space-y-2">
-                              <div className="preview-area aspect-square relative">
-                                {result ? (
-                                  <img
-                                    src={result}
-                                    alt={`Compressed ${file.name}`}
-                                    className="w-full h-full object-contain"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-secondary/50">
-                                    {isError ? (
-                                      <span className="text-red-400 text-sm">Error</span>
-                                    ) : progress > 0 ? (
-                                      <Progress value={progress} className="w-16 sm:w-20" />
-                                    ) : (
-                                      <span className="text-foreground/50 text-sm">Pending</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium truncate" title={file.name}>
-                                  {file.name}
-                                </p>
-                                <p className="text-xs text-foreground/70">{formatFileSize(file.size)}</p>
-                                {result && (
-                                  <Button
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className="button-minimal w-full text-xs"
-                                  >
-                                    <a
-                                      href={result}
-                                      download={`compressed_${file.name.split(".")[0]}.${format === "auto" ? file.name.split(".").pop() : format}`}
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      Download
-                                    </a>
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    
-                    {Object.keys(batchResults).length > 0 && (
-                      <div className="flex justify-center">
-                        <Button
-                          onClick={() => {
-                            // Download all as ZIP would be ideal, but for now show download all individually message
-                            alert("Individual downloads available above. Browser limitations prevent automatic ZIP creation.")
-                          }}
-                          variant="outline"
-                          className="button-minimal"
-                        >
-                          <span className="hidden sm:inline">Download All Instructions</span>
-                          <span className="sm:hidden">Download Instructions</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                    {/* Original Image */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-foreground/70">Original</span>
-                        <span className="text-sm text-foreground/70">{originalSize}</span>
-                      </div>
-                      <div className="preview-area aspect-square">
-                        {originalPreview && (
-                          <img
-                            src={originalPreview}
-                            alt="Original"
-                            className="w-full h-full object-contain"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Compressed Image */}
-                    {compressedImage && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground/70">Compressed</span>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2">
-                            <span className="text-sm text-foreground/70">{compressedSize}</span>
-                            {sizeReduction !== null && (
-                              <span className={`text-xs sm:text-sm ${sizeReduction > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                ({sizeReduction > 0 ? '-' : '+'}{Math.abs(sizeReduction)}%)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="preview-area aspect-square image-preview-container">
-                          <ReactCrop
-                            crop={crop}
-                            onChange={(c, percentCrop) => setCrop(c)}
-                            className="w-full h-full"
-                          >
-                            <img
-                              ref={compressedImgRef}
-                              src={compressedImage}
-                              alt="Compressed"
-                              className="w-full h-full object-contain"
-                              onLoad={(e) => (compressedImgRef.current = e.currentTarget)}
-                            />
-                          </ReactCrop>
-                        </div>
-                        
-                        {/* Action buttons positioned below image to prevent overlap */}
-                        <div className="button-actions-container">
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                              asChild
-                              variant="outline"
-                              className="button-minimal w-full touch-target"
-                            >
-                              <a
-                                href={compressedImage}
-                                download={`compressed_${file?.name.split(".")[0] || 'image'}.${compressedFileExtension || format}`}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                <span className="hidden sm:inline">Download Compressed</span>
-                                <span className="sm:hidden">Download</span>
-                              </a>
-                            </Button>
-                            <Button
-                              onClick={handleApplyCrop}
-                              disabled={!crop?.width || !crop?.height}
-                              className="button-minimal w-full touch-target"
-                              variant="outline"
-                            >
-                              <span className="hidden sm:inline">Apply Crop & Download</span>
-                              <span className="sm:hidden">Crop & Download</span>
-                            </Button>
-                          </div>
-                          
-                          {/* Crop instructions for mobile */}
-                          <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                            <p className="text-xs sm:text-sm text-blue-300">
-                              <span className="hidden sm:inline">Drag to select crop area, then click "Apply Crop"</span>
-                              <span className="sm:hidden">Tap and drag to crop, then tap "Crop & Download"</span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Alerts */}
-                {!isOnline && (
-                  <Alert className="mt-6 bg-transparent border border-orange-500/50">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      You're currently offline. PixSqueeze works completely offline - all image processing happens locally in your browser!
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {error && (
-                  <Alert variant="destructive" className="mt-6 bg-transparent border border-red-500/50">
-                    <FileWarning className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {warning && (
-                  <Alert className="mt-6 bg-transparent border border-yellow-500/50">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>{warning}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        )}
       </main>
     </div>
   )

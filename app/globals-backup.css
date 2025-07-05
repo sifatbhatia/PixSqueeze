@@ -1,0 +1,765 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    /* Dark navy */
+    --foreground: 60 9% 98%;
+    /* Off-white */
+
+    --card: 222 47% 11%;
+    --card-foreground: 60 9% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 60 9% 98%;
+
+    --primary: 60 9% 98%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 222 45% 15%;
+    --secondary-foreground: 60 9% 98%;
+
+    --muted: 222 45% 15%;
+    --muted-foreground: 60 9% 90%;
+
+    --accent: 222 45% 15%;
+    --accent-foreground: 60 9% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 60 9% 98%;
+
+    --border: 222 45% 15%;
+    --input: 222 45% 15%;
+    --ring: 60 9% 98%;
+
+    --radius: 0px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* Improve mobile performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Mobile optimization */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection for inputs and specific elements */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px;
+    /* Prevent zoom on iOS */
+  }
+}
+
+/* Checkerboard pattern for transparent images */
+.bg-checkerboard {
+  background-image: linear-gradient(45deg, rgba(0, 0, 0, 0.02) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(0, 0, 0, 0.02) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.02) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.02) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Custom font styles - Mobile optimized */
+.heading-gradient {
+  @apply text-foreground font-bold tracking-tight;
+}
+
+/* Mobile header optimizations */
+.mobile-header {
+  @apply py-8 sm:py-12 md:py-20 lg:py-24 xl:py-28;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+  width: 100vw;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  box-sizing: border-box;
+}
+
+.mobile-header h1 {
+  @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter;
+  /* Prevent text from being too large on mobile */
+  line-height: 1.1;
+}
+
+.mobile-header .header-content {
+  @apply flex flex-row items-center gap-2 sm:gap-4 mb-3;
+}
+
+.mobile-header .status-badges {
+  @apply flex flex-wrap gap-2;
+}
+
+.mobile-header .status-badge {
+  @apply flex items-center gap-2 bg-blue-500/20 text-blue-400 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm;
+}
+
+.mobile-header .subtitle {
+  @apply text-base sm:text-lg md:text-xl text-foreground/70;
+}
+
+/* Card and container styles */
+.container-shadow {
+  @apply shadow-none border-0;
+}
+
+/* Button styles - Mobile optimized */
+.button-minimal {
+  @apply bg-transparent border border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-secondary/70 transition-all duration-300;
+  /* Improve touch targets on mobile */
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  /* Friendly rounded corners */
+}
+
+/* Mobile button optimizations */
+@media (max-width: 768px) {
+  .button-minimal {
+    @apply text-base px-6 py-4;
+    min-height: 56px;
+    /* Even larger for better touch accessibility */
+    width: 100%;
+    max-width: none;
+    /* Remove max-width restriction on mobile */
+    font-weight: 600;
+    border-width: 2px;
+    /* Thicker border for better visibility */
+  }
+
+  /* Make sure the button container is visible */
+  .button-minimal:not(:disabled) {
+    @apply bg-blue-600/20 border-blue-500 text-blue-100;
+  }
+
+  .button-minimal:not(:disabled):hover {
+    @apply bg-blue-600/30 border-blue-400;
+  }
+
+  .button-minimal:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}
+
+/* Upload area styles - Mobile optimized */
+.upload-area {
+  @apply relative border border-foreground/20 bg-secondary/50 p-8 sm:p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
+  /* Mobile optimizations */
+  min-height: 200px;
+  touch-action: manipulation;
+  border-radius: 16px;
+  /* Friendly rounded corners */
+}
+
+@media (max-width: 768px) {
+  .upload-area {
+    @apply p-6;
+    min-height: 180px;
+  }
+}
+
+/* Image preview area - Mobile optimized */
+.preview-area {
+  @apply bg-secondary/50 border border-foreground/20;
+  /* Improve mobile scrolling */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  border-radius: 12px;
+  /* Friendly rounded corners */
+}
+
+/* Mobile controls optimization */
+.mobile-controls {
+  @apply grid grid-cols-1 gap-6 sm:gap-8;
+}
+
+@media (min-width: 768px) {
+  .mobile-controls {
+    @apply grid-cols-2;
+  }
+}
+
+/* PWA install prompt - Mobile optimized */
+.pwa-install-prompt {
+  @apply mt-4 p-3 sm:p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg;
+}
+
+.pwa-install-content {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4;
+}
+
+.pwa-install-buttons {
+  @apply flex gap-2 w-full sm:w-auto;
+}
+
+/* File management header - Mobile optimized */
+.file-management-header {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4;
+}
+
+.file-management-buttons {
+  @apply flex flex-wrap gap-2 w-full sm:w-auto;
+}
+
+/* Status indicators - Mobile optimized */
+.status-indicator {
+  @apply flex items-center gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm;
+}
+
+/* Optimize React Crop for mobile */
+.ReactCrop__crop-selection {
+  touch-action: none;
+}
+
+/* Hide specific buttons on mobile (as mentioned in original CSS) */
+@media (max-width: 768px) {
+
+  button.text-sm:nth-child(1),
+  button.text-sm:nth-child(3) {
+    display: none;
+  }
+}
+
+/* Performance optimizations */
+* {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile-specific improvements for button visibility and accessibility */
+@media (max-width: 768px) {
+
+  /* Main compress button - ensure it's large and prominent */
+  .button-minimal {
+    font-size: 1rem;
+    padding: 16px 24px;
+    min-height: 56px;
+    width: 100%;
+    max-width: none;
+    font-weight: 600;
+    border-width: 2px;
+    border-radius: 16px;
+    /* Extra friendly rounded corners on mobile */
+  }
+
+  /* Make sure the button container is visible */
+  .button-minimal:not(:disabled) {
+    background-color: rgba(37, 99, 235, 0.2);
+    border-color: rgb(59, 130, 246);
+    color: rgb(219, 234, 254);
+  }
+
+  .button-minimal:not(:disabled):hover {
+    background-color: rgba(37, 99, 235, 0.3);
+    border-color: rgb(96, 165, 250);
+  }
+
+  .button-minimal:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Ensure the header is truly edge-to-edge on mobile */
+  .mobile-header {
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    box-sizing: border-box;
+  }
+
+  .mobile-header h1 {
+    font-size: 1.875rem;
+    line-height: 1.1;
+  }
+
+  /* Make selects and inputs more mobile-friendly */
+  [data-radix-select-trigger] {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  /* Improve slider for mobile */
+  [data-radix-slider-root] {
+    height: 20px;
+  }
+
+  [data-radix-slider-thumb] {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Prevent horizontal overflow */
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  /* Ensure upload area is touch-friendly */
+  .upload-area {
+    min-height: 200px;
+    padding: 24px 16px;
+    touch-action: manipulation;
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: 20px;
+    /* Extra friendly rounded corners on mobile */
+  }
+
+  /* Image preview optimizations */
+  .preview-area {
+    min-height: 200px;
+    border-width: 1px;
+    border-radius: 16px;
+    /* Friendly rounded corners on mobile */
+  }
+
+  /* Fix scrolling issues */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Ensure blue header color is consistent */
+.mobile-header .status-badge {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgb(96, 165, 250);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* iOS and iPhone-specific optimizations */
+@media (max-width: 768px) {
+
+  /* Enhanced iOS slider optimization */
+  [data-radix-slider-root] {
+    height: 44px;
+    /* Larger touch target for iOS */
+    padding: 12px 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  [data-radix-slider-track] {
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+
+  [data-radix-slider-range] {
+    height: 8px;
+    background: linear-gradient(90deg, rgb(59, 130, 246), rgb(96, 165, 250));
+    border-radius: 4px;
+  }
+
+  [data-radix-slider-thumb] {
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 3px solid rgb(59, 130, 246);
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    cursor: grab;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  [data-radix-slider-thumb]:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  }
+
+  /* iOS-specific webkit optimizations */
+  [data-radix-slider-thumb]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 3px solid rgb(59, 130, 246);
+    border-radius: 50%;
+    cursor: grab;
+  }
+
+  /* Optimize select dropdowns for iOS */
+  [data-radix-select-trigger] {
+    min-height: 56px;
+    /* iOS-friendly touch target */
+    padding: 16px 20px;
+    font-size: 16px;
+    /* Prevents zoom on iOS */
+    border-radius: 14px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  [data-radix-select-trigger]:focus {
+    border-color: rgb(59, 130, 246);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  /* Enhanced button positioning to prevent overlap */
+  .button-actions-container {
+    position: relative;
+    z-index: 10;
+    background: rgba(34, 34, 47, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Ensure buttons don't overlap with image */
+  .image-preview-container {
+    position: relative;
+    margin-bottom: 80px;
+    /* Space for button container */
+  }
+
+  /* iOS-specific React Crop optimizations */
+  .ReactCrop {
+    max-width: 100%;
+    touch-action: manipulation;
+  }
+
+  .ReactCrop__crop-selection {
+    touch-action: none;
+    border: 2px solid rgb(59, 130, 246);
+    border-radius: 8px;
+  }
+
+  .ReactCrop__drag-handle {
+    width: 20px;
+    height: 20px;
+    background: rgb(59, 130, 246);
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Improved touch targets for iOS */
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari specific fixes */
+  .ios-safe-area {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* iPhone 12/13/14/15/16 specific optimizations */
+@media only screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) {
+
+  .mobile-header h1 {
+    font-size: 2.25rem;
+    /* Optimized for iPhone screens */
+  }
+
+  .button-minimal {
+    min-height: 60px;
+    /* Extra large for easier tapping */
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+}
+
+/* iPhone Pro Max optimizations */
+@media only screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) {
+
+  .container {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+}
+
+/* iOS-specific slider enhancements */
+.ios-slider {
+  position: relative;
+  width: 100%;
+  margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .ios-slider {
+    /* Add extra padding on left to avoid iOS back gesture conflict */
+    padding-left: 24px;
+    padding-right: 8px;
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+
+  .ios-slider [data-radix-slider-root] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    user-select: none;
+    touch-action: pan-y;
+    /* Prevent horizontal pan but allow vertical scrolling */
+    width: 100%;
+    height: 44px;
+    /* iOS recommended touch target */
+    padding: 0 16px;
+  }
+
+  .ios-slider [data-radix-slider-track] {
+    background-color: rgba(255, 255, 255, 0.15);
+    position: relative;
+    flex-grow: 1;
+    border-radius: 9999px;
+    height: 6px;
+  }
+
+  .ios-slider [data-radix-slider-range] {
+    position: absolute;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 9999px;
+    height: 100%;
+  }
+
+  .ios-slider [data-radix-slider-thumb] {
+    display: block;
+    width: 28px;
+    height: 28px;
+    background-color: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    transition: all 0.15s ease;
+    cursor: grab;
+    /* Ensure thumb has a large touch area */
+    position: relative;
+  }
+
+  .ios-slider [data-radix-slider-thumb]::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+    /* Invisible larger touch area */
+    pointer-events: auto;
+  }
+
+  .ios-slider [data-radix-slider-thumb]:hover {
+    background-color: #f8fafc;
+    transform: scale(1.05);
+  }
+
+  .ios-slider [data-radix-slider-thumb]:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3), 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+
+  .ios-slider [data-radix-slider-thumb]:focus {
+    outline: none;
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3), 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* iOS Safari specific enhancements to avoid back gesture conflicts */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+
+    /* iOS Safari detected */
+    .ios-slider {
+      /* Create a larger safe area on the left */
+      padding-left: 32px;
+      background: linear-gradient(to right,
+          transparent 0%,
+          transparent 20px,
+          rgba(59, 130, 246, 0.05) 20px,
+          rgba(59, 130, 246, 0.05) 100%);
+      border-radius: 12px;
+    }
+
+    .ios-slider::before {
+      content: '⇆';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.4);
+      z-index: 1;
+    }
+
+    /* Ensure the slider track starts after the safe area */
+    .ios-slider [data-radix-slider-root] {
+      margin-left: 8px;
+      width: calc(100% - 16px);
+    }
+
+    /* Add haptic-style feedback for iOS */
+    .ios-slider [data-radix-slider-thumb]:active {
+      animation: iOS-haptic 0.1s ease-out;
+    }
+  }
+}
+
+@keyframes iOS-haptic {
+  0% {
+    transform: scale(1.1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+/* Final iOS and safe area optimizations */
+@supports (padding: max(0px)) {
+  .ios-safe-area {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* iOS-specific focus and interaction improvements */
+@media (max-width: 768px) {
+
+  /* Prevent iOS zoom on focus */
+  input[type="file"]:focus,
+  button:focus,
+  select:focus {
+    font-size: 16px;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Better iOS button press feedback */
+  .button-minimal:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  /* iOS-specific upload area enhancements */
+  .upload-area:active {
+    transform: scale(0.995);
+    transition: transform 0.15s ease;
+  }
+
+  /* Optimize for iOS momentum scrolling */
+  .mobile-controls,
+  .image-preview-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* iOS-specific select styling */
+  [data-radix-select-content] {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(34, 34, 47, 0.95);
+    backdrop-filter: blur(20px);
+  }
+
+  [data-radix-select-item] {
+    min-height: 48px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 4px;
+    font-size: 16px;
+  }
+
+  [data-radix-select-item]:focus {
+    background: rgba(59, 130, 246, 0.2);
+    outline: none;
+  }
+}
+
+/* iOS 16+ specific enhancements */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 3) {
+  .mobile-header {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    box-sizing: border-box;
+  }
+
+  .button-actions-container {
+    margin-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}

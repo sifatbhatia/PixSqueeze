@@ -106,6 +106,9 @@ export default function RootLayout({
         {/* Disable iOS zoom on input focus */}
         <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
         
+        {/* HEIC support library */}
+        <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+        
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased ios-safe-area`} style={{margin: 0, padding: 0, width: '100%', overflowX: 'hidden'}}>
