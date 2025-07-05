@@ -130,6 +130,15 @@ export default function ImageCompressor() {
     }
   }, [])
   
+  // Mobile performance optimization
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768
+    if (isMobile) {
+      // Reduce WebGPU usage on mobile for better stability
+      setUseWebGPU(false)
+    }
+  }, [])
+  
   // Install PWA
   const handleInstallPWA = async () => {
     if (deferredPrompt) {
@@ -1081,38 +1090,46 @@ export default function ImageCompressor() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="py-16">
+      <header className="mobile-header">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-4 mb-3">
-            <h1 className="text-6xl sm:text-7xl font-bold tracking-tighter">PixSqueeze</h1>
-            {webGPUAvailable && useWebGPU && (
-              <div className="flex items-center gap-2 bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                WebGPU
-              </div>
-            )}
-            {!isOnline && (
-              <div className="flex items-center gap-2 bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-sm">
-                <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                Offline Mode
-              </div>
-            )}
+          <div className="header-content">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground">
+              PixSqueeze
+            </h1>
+            <div className="status-badges">
+              {webGPUAvailable && useWebGPU && (
+                <div className="status-badge bg-blue-500/20 text-blue-400">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span className="hidden sm:inline">WebGPU</span>
+                  <span className="sm:hidden">GPU</span>
+                </div>
+              )}
+              {!isOnline && (
+                <div className="status-badge bg-orange-500/20 text-orange-400">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                  <span className="hidden sm:inline">Offline Mode</span>
+                  <span className="sm:hidden">Offline</span>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-xl text-foreground/70">Your images, only lighter. {!isOnline ? "Works offline!" : ""}</p>
+          <p className="subtitle text-base sm:text-lg md:text-xl text-foreground/70">
+            Your images, only lighter. {!isOnline ? "Works offline!" : ""}
+          </p>
           
           {/* PWA Install Prompt */}
           {showInstallPrompt && (
-            <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <div className="flex items-center justify-between">
+            <div className="pwa-install-prompt">
+              <div className="pwa-install-content">
                 <div>
-                  <h3 className="text-lg font-medium text-blue-400">Install PixSqueeze</h3>
+                  <h3 className="text-base sm:text-lg font-medium text-blue-400">Install PixSqueeze</h3>
                   <p className="text-sm text-blue-300">Add to your home screen for faster access and offline use</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="pwa-install-buttons">
                   <Button
                     onClick={handleInstallPWA}
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
                   >
                     Install
                   </Button>
@@ -1120,7 +1137,7 @@ export default function ImageCompressor() {
                     onClick={() => setShowInstallPrompt(false)}
                     size="sm"
                     variant="outline"
-                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 flex-1 sm:flex-none"
                   >
                     Later
                   </Button>
@@ -1131,7 +1148,7 @@ export default function ImageCompressor() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
         <Card className="bg-transparent border-0">
           <CardContent className="p-0">
             {!file && !batchMode ? (
@@ -1174,36 +1191,40 @@ export default function ImageCompressor() {
             ) : (
               <div className="space-y-12">
                 {/* File Management Header */}
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="file-management-header">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
                     {batchMode ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-medium">Batch Mode</span>
-                        <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-sm">
+                        <span className="text-base sm:text-lg font-medium">Batch Mode</span>
+                        <span className="status-indicator bg-blue-500/20 text-blue-400">
                           {batchFiles.length} files
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-medium">Single Mode</span>
-                        <span className="text-sm text-foreground/70">{file?.name}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                        <span className="text-base sm:text-lg font-medium">Single Mode</span>
+                        <span className="text-sm text-foreground/70 truncate max-w-[200px] sm:max-w-none">
+                          {file?.name}
+                        </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="file-management-buttons">
                     <Button
                       onClick={handleAddMoreFiles}
                       variant="outline"
-                      className="button-minimal"
+                      className="button-minimal text-sm"
                     >
-                      Add More Files
+                      <span className="hidden sm:inline">Add More Files</span>
+                      <span className="sm:hidden">Add Files</span>
                     </Button>
                     <Button
                       onClick={handleReset}
                       variant="outline"
-                      className="button-minimal"
+                      className="button-minimal text-sm"
                     >
-                      Start Over
+                      <span className="hidden sm:inline">Start Over</span>
+                      <span className="sm:hidden">Reset</span>
                     </Button>
                     <Button
                       onClick={() => {
@@ -1212,16 +1233,17 @@ export default function ImageCompressor() {
                         setTimeout(() => setWarning(null), 3000)
                       }}
                       variant="outline"
-                      className="button-minimal text-orange-600 hover:text-orange-700"
+                      className="button-minimal text-orange-600 hover:text-orange-700 text-sm"
                       title="Clear memory cache to free up RAM"
                     >
-                      Free Memory
+                      <span className="hidden sm:inline">Free Memory</span>
+                      <span className="sm:hidden">Memory</span>
                     </Button>
                   </div>
                 </div>
 
                 {/* Controls Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="mobile-controls">
                   <div className="space-y-6">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
@@ -1325,23 +1347,27 @@ export default function ImageCompressor() {
                     <Button
                       onClick={handleCompress}
                       disabled={(!file && !batchMode) || isCompressing || isGeneratingHeicPreview}
-                      className="button-minimal px-8 py-6 text-lg w-full"
+                      className="button-minimal px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg w-full max-w-sm"
                     >
                       {isCompressing ? (
-                        <div className="flex items-center gap-3">
-                          <span>{batchMode ? "Processing Batch" : "Processing"}</span>
+                        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+                          <span className="text-sm sm:text-base">
+                            {batchMode ? "Processing Batch" : "Processing"}
+                          </span>
                           {useWebGPU && webGPUAvailable && (
                             <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">GPU</span>
                           )}
-                          <Progress value={compressionProgress} className="w-20" />
+                          <Progress value={compressionProgress} className="w-16 sm:w-20" />
                         </div>
                       ) : isGeneratingHeicPreview ? (
-                        <div className="flex items-center gap-3">
-                          <span>Converting HEIC Preview...</span>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <span className="text-sm sm:text-base">Converting HEIC Preview...</span>
                           <div className="w-4 h-4 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
                         </div>
                       ) : (
-                        batchMode ? `Compress ${batchFiles.length} Images` : "Compress Image"
+                        <span className="text-sm sm:text-base">
+                          {batchMode ? `Compress ${batchFiles.length} Images` : "Compress Image"}
+                        </span>
                       )}
                     </Button>
                   </div>
@@ -1350,9 +1376,9 @@ export default function ImageCompressor() {
                 {/* Image Preview Section */}
                 {batchMode ? (
                   <div className="space-y-6">
-                    <h3 className="text-lg font-medium">Batch Results</h3>
+                    <h3 className="text-base sm:text-lg font-medium">Batch Results</h3>
                     {batchFiles.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {batchFiles.map((file, index) => {
                           const fileKey = `${file.name}_${index}`
                           const progress = batchProgress[fileKey] || 0
@@ -1373,7 +1399,7 @@ export default function ImageCompressor() {
                                     {isError ? (
                                       <span className="text-red-400 text-sm">Error</span>
                                     ) : progress > 0 ? (
-                                      <Progress value={progress} className="w-20" />
+                                      <Progress value={progress} className="w-16 sm:w-20" />
                                     ) : (
                                       <span className="text-foreground/50 text-sm">Pending</span>
                                     )}
@@ -1381,14 +1407,16 @@ export default function ImageCompressor() {
                                 )}
                               </div>
                               <div className="space-y-1">
-                                <p className="text-sm font-medium truncate">{file.name}</p>
+                                <p className="text-sm font-medium truncate" title={file.name}>
+                                  {file.name}
+                                </p>
                                 <p className="text-xs text-foreground/70">{formatFileSize(file.size)}</p>
                                 {result && (
                                   <Button
                                     asChild
                                     variant="outline"
                                     size="sm"
-                                    className="button-minimal w-full"
+                                    className="button-minimal w-full text-xs"
                                   >
                                     <a
                                       href={result}
@@ -1416,13 +1444,14 @@ export default function ImageCompressor() {
                           variant="outline"
                           className="button-minimal"
                         >
-                          Download All Instructions
+                          <span className="hidden sm:inline">Download All Instructions</span>
+                          <span className="sm:hidden">Download Instructions</span>
                         </Button>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                     {/* Original Image */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
@@ -1445,10 +1474,10 @@ export default function ImageCompressor() {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-foreground/70">Compressed</span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2">
                             <span className="text-sm text-foreground/70">{compressedSize}</span>
                             {sizeReduction !== null && (
-                              <span className={`text-sm ${sizeReduction > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <span className={`text-xs sm:text-sm ${sizeReduction > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                 ({sizeReduction > 0 ? '-' : '+'}{Math.abs(sizeReduction)}%)
                               </span>
                             )}
@@ -1468,7 +1497,7 @@ export default function ImageCompressor() {
                             />
                           </ReactCrop>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             asChild
                             variant="outline"
@@ -1479,7 +1508,8 @@ export default function ImageCompressor() {
                               download={`compressed_${file?.name.split(".")[0] || 'image'}.${compressedFileExtension || format}`}
                             >
                               <Download className="h-4 w-4 mr-2" />
-                              Download
+                              <span className="hidden sm:inline">Download</span>
+                              <span className="sm:hidden">Download</span>
                             </a>
                           </Button>
                           <Button
@@ -1488,7 +1518,8 @@ export default function ImageCompressor() {
                             className="button-minimal w-full"
                             variant="outline"
                           >
-                            Apply Crop
+                            <span className="hidden sm:inline">Apply Crop</span>
+                            <span className="sm:hidden">Crop</span>
                           </Button>
                         </div>
                       </div>

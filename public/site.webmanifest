@@ -1,24 +1,24 @@
 {
-  "name": "PixSqueeze - Image Compressor",
-  "short_name": "PixSqueeze",
-  "description": "Compress images offline with advanced features like HEIC support, corner rounding, and batch processing",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#ffffff",
-  "orientation": "portrait-primary",
-  "icons": [
-    {
-      "src": "/android-chrome-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+   "name": "PixSqueeze - Image Compressor",
+   "short_name": "PixSqueeze",
+   "description": "Compress images offline with advanced features like HEIC support, corner rounding, and batch processing",
+   "start_url": "/",
+   "display": "standalone",
+   "background_color": "#000000",
+   "theme_color": "#ffffff",
+   "orientation": "portrait-primary",
+   "icons": [
+      {
+         "src": "/android-chrome-192x192.png",
+         "sizes": "192x192",
+         "type": "image/png",
+         "purpose": "maskable"
+      },
+      {
+         "src": "/android-chrome-512x512.png",
+         "sizes": "512x512",
+         "type": "image/png",
+         "purpose": "maskable"
+      }
+   ]
 }

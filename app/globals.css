@@ -45,6 +45,33 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    /* Improve mobile performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Mobile optimization */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection for inputs and specific elements */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px; /* Prevent zoom on iOS */
   }
 }
 
@@ -58,9 +85,36 @@
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
 
-/* Custom font styles */
+/* Custom font styles - Mobile optimized */
 .heading-gradient {
   @apply text-foreground font-bold tracking-tight;
+}
+
+/* Mobile header optimizations */
+.mobile-header {
+  @apply py-8 sm:py-12 md:py-16;
+}
+
+.mobile-header h1 {
+  @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter;
+  /* Prevent text from being too large on mobile */
+  line-height: 1.1;
+}
+
+.mobile-header .header-content {
+  @apply flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-3;
+}
+
+.mobile-header .status-badges {
+  @apply flex flex-wrap gap-2 mt-2 sm:mt-0;
+}
+
+.mobile-header .status-badge {
+  @apply flex items-center gap-2 bg-blue-500/20 text-blue-400 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm;
+}
+
+.mobile-header .subtitle {
+  @apply text-base sm:text-lg md:text-xl text-foreground/70;
 }
 
 /* Card and container styles */
@@ -68,22 +122,107 @@
   @apply shadow-none border-0;
 }
 
-/* Button styles */
+/* Button styles - Mobile optimized */
 .button-minimal {
   @apply bg-transparent border border-foreground/20 text-foreground hover:border-foreground/40 hover:bg-secondary/70 transition-all duration-300;
+  /* Improve touch targets on mobile */
+  min-height: 44px;
+  min-width: 44px;
 }
 
-/* Upload area styles */
+/* Mobile button optimizations */
+@media (max-width: 768px) {
+  .button-minimal {
+    @apply text-sm px-4 py-3;
+    min-height: 48px; /* Larger touch targets on mobile */
+  }
+}
+
+/* Upload area styles - Mobile optimized */
 .upload-area {
-  @apply relative rounded-none border border-foreground/20 bg-secondary/50 p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
+  @apply relative rounded-none border border-foreground/20 bg-secondary/50 p-8 sm:p-12 text-center transition-all duration-300 hover:border-foreground/40 hover:bg-secondary/70;
+  /* Mobile optimizations */
+  min-height: 200px;
+  touch-action: manipulation;
 }
 
-/* Image preview area */
+@media (max-width: 768px) {
+  .upload-area {
+    @apply p-6;
+    min-height: 180px;
+  }
+}
+
+/* Image preview area - Mobile optimized */
 .preview-area {
   @apply bg-secondary/50 border border-foreground/20;
+  /* Improve mobile scrolling */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
 }
 
-button.text-sm:nth-child(1),
-button.text-sm:nth-child(3) {
-  display: none;
+/* Mobile controls optimization */
+.mobile-controls {
+  @apply grid grid-cols-1 gap-6 sm:gap-8;
+}
+
+@media (min-width: 768px) {
+  .mobile-controls {
+    @apply grid-cols-2;
+  }
+}
+
+/* PWA install prompt - Mobile optimized */
+.pwa-install-prompt {
+  @apply mt-4 p-3 sm:p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg;
+}
+
+.pwa-install-content {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4;
+}
+
+.pwa-install-buttons {
+  @apply flex gap-2 w-full sm:w-auto;
+}
+
+/* File management header - Mobile optimized */
+.file-management-header {
+  @apply flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4;
+}
+
+.file-management-buttons {
+  @apply flex flex-wrap gap-2 w-full sm:w-auto;
+}
+
+/* Status indicators - Mobile optimized */
+.status-indicator {
+  @apply flex items-center gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm;
+}
+
+/* Optimize React Crop for mobile */
+.ReactCrop__crop-selection {
+  touch-action: none;
+}
+
+/* Hide specific buttons on mobile (as mentioned in original CSS) */
+@media (max-width: 768px) {
+  button.text-sm:nth-child(1),
+  button.text-sm:nth-child(3) {
+    display: none;
+  }
+}
+
+/* Performance optimizations */
+* {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
