@@ -68,8 +68,14 @@ export const metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'PixSqueeze',
+    startupImage: [
+      {
+        url: '/apple-touch-icon.png',
+        media: '(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
   },
 }
 
@@ -81,19 +87,28 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, shrink-to-fit=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
         <meta name="theme-color" content="#1a1a2e" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="PixSqueeze" />
+        <meta name="apple-touch-fullscreen" content="yes" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#1a1a2e" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="apple-touch-fullscreen" content="yes" />
+        
+        {/* iOS-specific optimizations */}
+        <meta name="apple-mobile-web-app-orientations" content="portrait" />
+        <meta name="supported-color-schemes" content="dark" />
+        <meta name="color-scheme" content="dark" />
+        
+        {/* Disable iOS zoom on input focus */}
+        <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+        
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased overflow-x-hidden`}>
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased ios-safe-area`} style={{margin: 0, padding: 0, width: '100%', overflowX: 'hidden'}}>
         {children}
       </body>
     </html>

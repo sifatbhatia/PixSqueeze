@@ -1091,8 +1091,8 @@ export default function ImageCompressor() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="mobile-header">
-        <div className="container mx-auto px-4">
-          <div className="header-content">
+        <div className="w-full">
+          <div className="header-content px-4">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-foreground">
               PixSqueeze
             </h1>
@@ -1113,13 +1113,13 @@ export default function ImageCompressor() {
               )}
             </div>
           </div>
-          <p className="subtitle text-base sm:text-lg md:text-xl text-foreground/70">
+          <p className="subtitle text-base sm:text-lg md:text-xl text-foreground/70 px-4">
             Your images, only lighter. {!isOnline ? "Works offline!" : ""}
           </p>
           
           {/* PWA Install Prompt */}
           {showInstallPrompt && (
-            <div className="pwa-install-prompt">
+            <div className="pwa-install-prompt mx-4">
               <div className="pwa-install-content">
                 <div>
                   <h3 className="text-base sm:text-lg font-medium text-blue-400">Install PixSqueeze</h3>
@@ -1257,7 +1257,8 @@ export default function ImageCompressor() {
                         step={1}
                         value={[quality]}
                         onValueChange={(value) => setQuality(value[0])}
-                        className="mt-2 touch-manipulation"
+                        className="mt-2 touch-manipulation ios-slider"
+                        aria-label="Image quality percentage"
                       />
                     </div>
                     <div className="space-y-4">
@@ -1484,10 +1485,11 @@ export default function ImageCompressor() {
                             )}
                           </div>
                         </div>
-                        <div className="preview-area aspect-square">
+                        <div className="preview-area aspect-square image-preview-container">
                           <ReactCrop
                             crop={crop}
                             onChange={(c, percentCrop) => setCrop(c)}
+                            className="w-full h-full"
                           >
                             <img
                               ref={compressedImgRef}
@@ -1498,30 +1500,42 @@ export default function ImageCompressor() {
                             />
                           </ReactCrop>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button
-                            asChild
-                            variant="outline"
-                            className="button-minimal w-full"
-                          >
-                            <a
-                              href={compressedImage}
-                              download={`compressed_${file?.name.split(".")[0] || 'image'}.${compressedFileExtension || format}`}
+                        
+                        {/* Action buttons positioned below image to prevent overlap */}
+                        <div className="button-actions-container">
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <Button
+                              asChild
+                              variant="outline"
+                              className="button-minimal w-full touch-target"
                             >
-                              <Download className="h-4 w-4 mr-2" />
-                              <span className="hidden sm:inline">Download</span>
-                              <span className="sm:hidden">Download</span>
-                            </a>
-                          </Button>
-                          <Button
-                            onClick={handleApplyCrop}
-                            disabled={!crop?.width || !crop?.height}
-                            className="button-minimal w-full"
-                            variant="outline"
-                          >
-                            <span className="hidden sm:inline">Apply Crop</span>
-                            <span className="sm:hidden">Crop</span>
-                          </Button>
+                              <a
+                                href={compressedImage}
+                                download={`compressed_${file?.name.split(".")[0] || 'image'}.${compressedFileExtension || format}`}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                <span className="hidden sm:inline">Download Compressed</span>
+                                <span className="sm:hidden">Download</span>
+                              </a>
+                            </Button>
+                            <Button
+                              onClick={handleApplyCrop}
+                              disabled={!crop?.width || !crop?.height}
+                              className="button-minimal w-full touch-target"
+                              variant="outline"
+                            >
+                              <span className="hidden sm:inline">Apply Crop & Download</span>
+                              <span className="sm:hidden">Crop & Download</span>
+                            </Button>
+                          </div>
+                          
+                          {/* Crop instructions for mobile */}
+                          <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                            <p className="text-xs sm:text-sm text-blue-300">
+                              <span className="hidden sm:inline">Drag to select crop area, then click "Apply Crop"</span>
+                              <span className="sm:hidden">Tap and drag to crop, then tap "Crop & Download"</span>
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
