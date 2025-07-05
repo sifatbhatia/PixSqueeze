@@ -546,12 +546,21 @@
 }
 
 @media (max-width: 768px) {
+  .ios-slider {
+    /* Add extra padding on left to avoid iOS back gesture conflict */
+    padding-left: 24px;
+    padding-right: 8px;
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+
   .ios-slider [data-radix-slider-root] {
     position: relative;
     display: flex;
     align-items: center;
     user-select: none;
-    touch-action: none;
+    touch-action: pan-y;
+    /* Prevent horizontal pan but allow vertical scrolling */
     width: 100%;
     height: 44px;
     /* iOS recommended touch target */
@@ -583,6 +592,19 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1);
     transition: all 0.15s ease;
     cursor: grab;
+    /* Ensure thumb has a large touch area */
+    position: relative;
+  }
+
+  .ios-slider [data-radix-slider-thumb]::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+    /* Invisible larger touch area */
+    pointer-events: auto;
   }
 
   .ios-slider [data-radix-slider-thumb]:hover {
@@ -599,6 +621,60 @@
   .ios-slider [data-radix-slider-thumb]:focus {
     outline: none;
     box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3), 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* iOS Safari specific enhancements to avoid back gesture conflicts */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+
+    /* iOS Safari detected */
+    .ios-slider {
+      /* Create a larger safe area on the left */
+      padding-left: 32px;
+      background: linear-gradient(to right,
+          transparent 0%,
+          transparent 20px,
+          rgba(59, 130, 246, 0.05) 20px,
+          rgba(59, 130, 246, 0.05) 100%);
+      border-radius: 12px;
+    }
+
+    .ios-slider::before {
+      content: '⇆';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.4);
+      z-index: 1;
+    }
+
+    /* Ensure the slider track starts after the safe area */
+    .ios-slider [data-radix-slider-root] {
+      margin-left: 8px;
+      width: calc(100% - 16px);
+    }
+
+    /* Add haptic-style feedback for iOS */
+    .ios-slider [data-radix-slider-thumb]:active {
+      animation: iOS-haptic 0.1s ease-out;
+    }
+  }
+}
+
+@keyframes iOS-haptic {
+  0% {
+    transform: scale(1.1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1.1);
   }
 }
 
